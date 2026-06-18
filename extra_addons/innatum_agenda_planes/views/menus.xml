@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Menú raíz "Innatum SaaS" — solo visible para group_admin_innatum -->
+    <menuitem id="menu_innatum_saas_root"
+              name="Innatum SaaS"
+              sequence="200"
+              groups="group_admin_innatum"
+              web_icon="innatum_agenda_planes,static/description/icon.png"/>
+
+    <!-- Suscripciones: primero, vista por defecto al abrir Innatum SaaS -->
+    <menuitem id="menu_innatum_saas_suscripciones"
+              name="Suscripciones"
+              parent="menu_innatum_saas_root"
+              action="action_in_agenda_suscripcion"
+              sequence="5"/>
+
+    <!-- Recargas IA -->
+    <menuitem id="menu_innatum_saas_recargas"
+              name="Recargas IA"
+              parent="menu_innatum_saas_root"
+              action="action_in_agenda_recarga_ia"
+              sequence="10"/>
+
+    <!-- Crear tenant: el wizard NO puede ser primero — su action target=new
+         dispara popup automáticamente al hacer click en el menú raíz,
+         lo que oculta los demás submenús. -->
+    <menuitem id="menu_innatum_saas_wizard"
+              name="Crear tenant"
+              parent="menu_innatum_saas_root"
+              action="action_in_agenda_tenant_wizard"
+              sequence="50"/>
+
+    <!-- Planes (catálogo) -->
+    <menuitem id="menu_innatum_saas_planes"
+              name="Planes"
+              parent="menu_innatum_saas_root"
+              action="action_in_agenda_plan"
+              sequence="90"/>
+
+</odoo>

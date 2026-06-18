@@ -1,0 +1,13 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_innatum_vertical_template_user,access.innatum.vertical.template.user,model_innatum_vertical_template,base.group_user,1,0,0,0
+access_innatum_vertical_template_admin,access.innatum.vertical.template.admin,model_innatum_vertical_template,base.group_system,1,1,1,1
+access_innatum_business_profile_user,access.innatum.business.profile.user,model_innatum_business_profile,base.group_user,1,0,0,0
+access_innatum_business_profile_admin,access.innatum.business.profile.admin,model_innatum_business_profile,base.group_system,1,1,1,1
+access_innatum_ai_session_user,access.innatum.ai.session.user,model_innatum_ai_session,base.group_user,1,1,1,0
+access_innatum_ai_session_admin,access.innatum.ai.session.admin,model_innatum_ai_session,base.group_system,1,1,1,1
+access_innatum_ai_session_message_user,access.innatum.ai.session.message.user,model_innatum_ai_session_message,base.group_user,1,1,1,0
+access_innatum_ai_session_message_admin,access.innatum.ai.session.message.admin,model_innatum_ai_session_message,base.group_system,1,1,1,1
+access_innatum_ai_prompt_user,access.innatum.ai.prompt.user,model_innatum_ai_prompt,base.group_user,1,0,0,0
+access_innatum_ai_prompt_admin,access.innatum.ai.prompt.admin,model_innatum_ai_prompt,base.group_system,1,1,1,1
+access_innatum_wa_throttle_user,access.innatum.wa.throttle.user,model_innatum_wa_throttle,base.group_user,1,1,1,0
+access_innatum_wa_throttle_admin,access.innatum.wa.throttle.admin,model_innatum_wa_throttle,base.group_system,1,1,1,1

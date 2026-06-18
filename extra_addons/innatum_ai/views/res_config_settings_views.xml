@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_innatum_ai" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.innatum_ai</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="AI Assistant"
+                     string="AI Assistant"
+                     name="innatum_ai"
+                     groups="innatum_ai.group_ai_admin">
+
+                    <block title="Límites de Consumo (Instancia)"
+                           name="innatum_ai_cost_limits">
+                        <setting id="innatum_ai_monthly_limit" string="Límite Mensual">
+                            <div>
+                                <field name="innatum_ai_monthly_limit_usd" class="oe_inline"/>
+                                <span class="ms-1">USD</span>
+                            </div>
+                            <div class="text-muted small mt-1">
+                                Presupuesto máximo de gasto en APIs de IA por mes natural (toda la instancia).
+                            </div>
+                        </setting>
+
+                        <setting id="innatum_ai_max_cost_per_conversation"
+                                 string="Límite por Conversación">
+                            <div>
+                                <field name="innatum_ai_max_cost_per_conversation_usd" class="oe_inline"/>
+                                <span class="ms-1">USD</span>
+                            </div>
+                            <div class="text-muted small mt-1">
+                                Máximo que puede costar UNA sola conversación. Evita abuso.
+                            </div>
+                        </setting>
+
+                        <setting id="innatum_ai_limit_action"
+                                 string="Acción al Alcanzar Límite">
+                            <field name="innatum_ai_limit_action"/>
+                        </setting>
+                    </block>
+
+                    <block title="Consumo del Mes Actual"
+                           name="innatum_ai_consumption">
+                        <setting id="innatum_ai_current_cost" string="Gasto acumulado (USD)">
+                            <field name="innatum_ai_current_month_cost_usd" readonly="1" class="oe_inline"/>
+                            <span class="ms-1 text-muted" invisible="not innatum_ai_monthly_limit_usd">
+                                / <field name="innatum_ai_monthly_limit_usd" readonly="1" class="oe_inline"/> USD
+                                (<field name="innatum_ai_current_month_pct" readonly="1" class="oe_inline"/>%)
+                            </span>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

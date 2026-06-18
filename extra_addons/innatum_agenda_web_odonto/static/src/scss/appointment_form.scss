@@ -1,0 +1,50 @@
+// Override de colores del formulario /citas para el vertical odonto.
+// Se aplica solo cuando el wrap tiene la clase `vertical-odonto`,
+// que el template generic añade dinámicamente según company.vertical.
+
+$odonto-primary:      #0e6e9e;
+$odonto-primary-dark: #0a4f73;
+$odonto-accent:       #1bbfb2;
+$odonto-primary-soft: #cfeaf3;
+$odonto-text-dark:    #0a4f73;
+
+.inmed-appointment-page.vertical-odonto {
+
+    .inmed-header {
+        background: linear-gradient(135deg, $odonto-primary 0%, $odonto-primary-dark 100%);
+    }
+
+    .inmed-section-divider {
+        border-bottom-color: $odonto-primary;
+
+        h3 {
+            color: $odonto-primary;
+        }
+    }
+
+    .inmed-input,
+    .inmed-select {
+        &:focus {
+            border-color: $odonto-primary;
+            box-shadow: 0 0 0 3px rgba($odonto-primary, 0.18);
+        }
+    }
+
+    .inmed-info-box {
+        background-color: $odonto-primary-soft;
+        border-color: rgba($odonto-primary, 0.35);
+        color: $odonto-text-dark;
+    }
+
+    .inmed-btn-submit {
+        background: linear-gradient(135deg, $odonto-primary 0%, $odonto-primary-dark 100%);
+
+        &:hover:not(:disabled) {
+            background: linear-gradient(135deg, $odonto-accent 0%, $odonto-primary 100%);
+        }
+    }
+
+    .inmed-field-message.inmed-msg-info {
+        color: $odonto-primary;
+    }
+}

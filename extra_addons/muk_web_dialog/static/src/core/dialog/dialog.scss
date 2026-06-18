@@ -1,0 +1,82 @@
+// =============================================================================
+// DIALOG - Full Glassmorphism 2026
+// =============================================================================
+.mk_btn_dialog_size {
+	color: $btn-close-color;
+	opacity: $btn-close-opacity;
+	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+	border-radius: 8px;
+	padding: 4px;
+
+	&:hover {
+	    opacity: $btn-close-hover-opacity;
+	    transform: scale(1.1);
+	    background: rgba(0, 0, 0, 0.04);
+	}
+}
+
+// Glass modal
+.modal-content {
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.12),
+        0 2px 8px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+    backdrop-filter: blur(16px);
+    animation: modalSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    .modal-header {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        padding: 18px 24px;
+
+        .modal-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .btn-close {
+            border-radius: 8px;
+            transition: all 0.15s ease;
+            padding: 8px;
+
+            &:hover {
+                background: rgba(0, 0, 0, 0.05);
+            }
+        }
+    }
+
+    .modal-body {
+        padding: 24px;
+    }
+
+    .modal-footer {
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+        padding: 14px 24px;
+        gap: 10px;
+
+        .btn {
+            border-radius: 10px;
+            padding: 8px 24px;
+            font-weight: 500;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    }
+}
+
+// Overlay con blur intenso
+.modal-backdrop {
+    backdrop-filter: blur(8px);
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}

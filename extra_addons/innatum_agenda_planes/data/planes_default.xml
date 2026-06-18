@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="plan_basico" model="in_agenda.plan">
+        <field name="name">Básico</field>
+        <field name="code">BASIC</field>
+        <field name="precio_mensual_usd">29.00</field>
+        <field name="max_turnos_mes">100</field>
+        <field name="max_profesionales">1</field>
+        <field name="ai_enabled" eval="True"/>
+        <field name="ai_margin_pct_default">50.0</field>
+        <field name="description">
+Plan inicial para pequeños negocios.
+- 100 turnos / mes
+- 1 profesional
+- Chatbot IA (con recargas)
+- Sitio web público con subdominio
+        </field>
+    </record>
+
+    <record id="plan_pro" model="in_agenda.plan">
+        <field name="name">Pro</field>
+        <field name="code">PRO</field>
+        <field name="precio_mensual_usd">79.00</field>
+        <field name="max_turnos_mes">0</field>
+        <field name="max_profesionales">5</field>
+        <field name="ai_enabled" eval="True"/>
+        <field name="ai_margin_pct_default">45.0</field>
+        <field name="description">
+Para negocios en crecimiento.
+- Turnos ilimitados
+- Hasta 5 profesionales
+- Chatbot IA con margen menor (más tokens por dólar)
+- Soporte prioritario
+        </field>
+    </record>
+
+    <record id="plan_enterprise" model="in_agenda.plan">
+        <field name="name">Enterprise</field>
+        <field name="code">ENT</field>
+        <field name="precio_mensual_usd">199.00</field>
+        <field name="max_turnos_mes">0</field>
+        <field name="max_profesionales">0</field>
+        <field name="ai_enabled" eval="True"/>
+        <field name="ai_margin_pct_default">35.0</field>
+        <field name="description">
+Para cadenas y clínicas grandes.
+- Todo ilimitado
+- Mejor margen IA (más tokens por dólar recargado)
+- Branding custom
+- SLA dedicado
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Agrega checkbox "Puede facturar" debajo del rol en la vista
+         simplificada de "Administración → Personal". -->
+    <record id="hr_employee_personal_form_inherit_facturacion" model="ir.ui.view">
+        <field name="name">hr.employee.personal.form.facturacion</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="innatum_agenda_admin.innatum_agenda_admin_personal_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='innatum_agenda_rol']" position="after">
+                <field name="puede_facturar"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

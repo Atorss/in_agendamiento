@@ -1,0 +1,129 @@
+name: Deploy Odoo to VPS
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  REPO_NAME: in_agendamiento
+  DEPLOY_BRANCH: main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup SSH
+      env:
+        SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        SSH_HOST: ${{ secrets.SSH_HOST }}
+        SSH_PORT: ${{ secrets.SSH_PORT }}
+        SSH_USER: ${{ secrets.SSH_USERNAME }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts
+
+    - name: Deploy to VPS via SSH
+      env:
+        SSH_HOST: ${{ secrets.SSH_HOST }}
+        SSH_PORT: ${{ secrets.SSH_PORT }}
+        SSH_USER: ${{ secrets.SSH_USERNAME }}
+      run: |
+        ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -p "$SSH_PORT" \
+            "$SSH_USER@$SSH_HOST" \
+            'bash -s' << 'ENDSSH'
+          #!/bin/bash
+          set -e
+
+          # 1. Navegar al directorio del cliente
+          mkdir -p /home/${{ secrets.SSH_USERNAME }}/clientes/${{ env.REPO_NAME }}
+          cd /home/${{ secrets.SSH_USERNAME }}/clientes/${{ env.REPO_NAME }}
+
+          # 2. Clonar o actualizar repositorio
+          if [ -d .git ]; then
+            echo "Actualizando codigo..."
+            git config --global --add safe.directory $(pwd)
+            git pull https://${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.DEPLOY_BRANCH }} || {
+              echo "Pull fallo, forzando actualizacion..."
+              git fetch https://${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.DEPLOY_BRANCH }}
+              git reset --hard FETCH_HEAD
+              git clean -fd
+            }
+          else
+            echo "Clonando repositorio por primera vez..."
+            git clone https://${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git .
+          fi
+
+          # 3. Generar archivo .env
+          echo "Generando archivo .env..."
+          {
+            echo "# Configuracion generada automaticamente por GitHub Actions"
+            echo "CLIENT_NAME=${{ env.REPO_NAME }}"
+            echo "ODOO_VERSION=18.0"
+            echo "POSTGRES_DB=postgres"
+            echo "POSTGRES_USER=odoo"
+            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}"
+            echo "POSTGRES_VERSION=18-alpine"
+            echo "ODOO_ADMIN_PASSWD=${{ secrets.ODOO_ADMIN_PASSWD }}"
+            echo "ODOO_WORKERS=0"
+            echo "ODOO_LOG_LEVEL=info"
+            echo "ODOO_PROXY_MODE=True"
+            echo "PROXY_NETWORK=red-proxy"
+          } > .env
+
+          # 4. Instalar modulos personalizados desde modules.json
+          if [ -f config/modules.json ]; then
+            echo "Procesando modulos personalizados..."
+
+            modules_count=$(jq '.modules | length' config/modules.json)
+
+            if [ "$modules_count" -gt 0 ]; then
+              echo "Encontrados $modules_count modulo(s) en modules.json"
+              mkdir -p extra_addons
+
+              # Instalar cada modulo habilitado
+              jq -c '.modules[] | select(.enabled==true)' config/modules.json | while read -r module; do
+                module_name=$(echo "$module" | jq -r '.name')
+                module_repo=$(echo "$module" | jq -r '.repo')
+                module_branch=$(echo "$module" | jq -r '.branch // "main"')
+
+                echo "Instalando modulo: $module_name desde $module_repo (branch: $module_branch)"
+
+                # Eliminar modulo si ya existe (para actualizar)
+                rm -rf "extra_addons/$module_name"
+
+                # Clonar el modulo usando HTTPS con token
+                if git clone -b "$module_branch" "https://${{ secrets.GH_TOKEN }}@github.com/$module_repo.git" "extra_addons/$module_name"; then
+                  echo "Modulo $module_name instalado correctamente"
+                  rm -rf "extra_addons/$module_name/.git"
+                else
+                  echo "Error al instalar modulo $module_name - Intentando como repositorio publico..."
+                  # Intentar sin token (por si es publico)
+                  if git clone -b "$module_branch" "https://github.com/$module_repo.git" "extra_addons/$module_name"; then
+                    echo "Modulo $module_name instalado correctamente (publico)"
+                    rm -rf "extra_addons/$module_name/.git"
+                  else
+                    echo "Error fatal al instalar modulo $module_name"
+                  fi
+                fi
+              done
+
+              echo "Instalacion de modulos completada"
+            else
+              echo "No hay modulos externos para instalar"
+            fi
+          else
+            echo "No se encontro modules.json, omitiendo instalacion de modulos"
+          fi
+
+          # 5. Reiniciar contenedores
+          echo "Reiniciando contenedores..."
+          docker compose down
+          docker compose up -d --build
+
+          echo "Deploy completado exitosamente"
+        ENDSSH

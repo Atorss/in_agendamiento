@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- Module Category -->
+    <record id="module_category_ai" model="ir.module.category">
+        <field name="name">AI Assistant</field>
+        <field name="description">Categoría para el módulo de Asistente IA</field>
+        <field name="sequence">100</field>
+    </record>
+
+    <!-- User Group: can use the chat -->
+    <record id="group_ai_user" model="res.groups">
+        <field name="name">Usuario IA</field>
+        <field name="category_id" ref="module_category_ai"/>
+        <field name="comment">Puede usar el asistente de IA para consultar datos.</field>
+    </record>
+
+    <!-- Manager Group: can use chat + write/create/delete tools -->
+    <record id="group_ai_manager" model="res.groups">
+        <field name="name">Manager IA</field>
+        <field name="category_id" ref="module_category_ai"/>
+        <field name="implied_ids" eval="[(4, ref('group_ai_user'))]"/>
+        <field name="comment">Puede usar herramientas de escritura y eliminación.</field>
+    </record>
+
+    <!-- Admin Group: full configuration -->
+    <record id="group_ai_admin" model="res.groups">
+        <field name="name">Administrador IA</field>
+        <field name="category_id" ref="module_category_ai"/>
+        <field name="implied_ids" eval="[(4, ref('group_ai_manager'))]"/>
+        <field name="comment">Puede configurar proveedores, herramientas y ver todo el historial.</field>
+        <field name="users" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- ============================================================
+         Multi-company global rules (aislamiento entre tenants)
+
+         Conversations y usage logs son por tenant.
+         Providers son globales (Innatum los administra, no el tenant).
+         ============================================================ -->
+
+    <record id="rule_ai_conversation_multi_company" model="ir.rule">
+        <field name="name">Conversación IA: aislamiento por tenant</field>
+        <field name="model_id" ref="model_innatum_ai_conversation"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_ai_usage_log_multi_company" model="ir.rule">
+        <field name="name">Log uso IA: aislamiento por tenant</field>
+        <field name="model_id" ref="model_innatum_ai_usage_log"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_id', 'in', company_ids)]</field>
+    </record>
+
+</odoo>

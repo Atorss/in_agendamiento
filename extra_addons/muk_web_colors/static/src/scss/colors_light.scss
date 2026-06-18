@@ -1,0 +1,31 @@
+// Colors — Innatum SaaS palette (Indigo + Coral)
+
+$mk_color_brand: #1e1b4b;        // indigo-950 (navbar/sidebar)
+$mk_color_primary: #4f46e5;      // indigo-600 (botones/acentos)
+
+$mk_color_success: #16A34A;
+$mk_color_info: #6366F1;         // indigo-500
+$mk_color_warning: #D97706;
+$mk_color_danger: #DC2626;
+
+// Override
+
+$o-community-color: $mk-color-brand;
+$o-enterprise-color: $mk-color-brand;
+$o-enterprise-action-color: $mk-color-primary;
+
+$o-brand-odoo: $mk-color-primary;
+$o-brand-primary: $mk-color-primary;
+
+$o-success: $mk-color-success;
+$o-info: $mk-color-info;
+$o-warning: $mk-color-warning;
+$o-danger: $mk-color-danger;
+
+$o-theme-text-colors: (
+    "primary": $mk-color-primary,
+    "success": $o-success,
+    "info": $o-info,
+    "warning": $o-warning,
+    "danger": $o-danger,
+);

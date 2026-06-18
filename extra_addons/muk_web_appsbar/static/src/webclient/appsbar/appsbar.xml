@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<templates xml:space="preserve">
+
+	<t t-name="muk_web_appsbar.AppsBar">
+		<div class="mk_apps_sidebar_panel" id="sidebar_panel">
+			<div class="mk_apps_sidebar sidebar">
+				<!-- Sidebar Toggle Button -->
+				<div class="sidebar_toggle">
+					<a id="toggleSidebar" t-on-click="toggleSidebar" t-att-title="state.isCollapsed ? 'Expand menu' : 'Collapse menu'">
+						<i t-attf-class="fa {{ state.isCollapsed ? 'fa-bars' : 'fa-times' }}"/>
+					</a>
+				</div>
+
+				<!-- Sidebar Menu -->
+				<ul class="mk_apps_sidebar_menu sidebar_menu">
+					<t t-if="!state.isLoading">
+						<!-- Menu Groups (Multi-level structure) -->
+						<t t-if="state.menuGroups.length > 0">
+							<t t-foreach="state.menuGroups" t-as="group" t-key="group.id">
+								<MenuTreeItem
+									group="group"
+									level="1"
+									onSelectApp.bind="_onAppClick"
+									onExpandSidebar.bind="_expandSidebar"
+									activeAppId="activeAppId"
+									sidebarCollapsed="state.isCollapsed"/>
+							</t>
+						</t>
+
+						<!-- Ungrouped Apps (fallback to original behavior) -->
+						<t t-if="state.ungroupedApps.length > 0">
+							<li t-if="state.menuGroups.length > 0" class="divider"/>
+							<t t-foreach="state.ungroupedApps" t-as="app" t-key="app.id">
+								<li t-attf-class="nav-item {{ app.id === activeAppId ? 'active' : '' }}">
+									<a
+										t-att-href="app.href"
+										t-att-data-menu-id="app.id"
+										t-att-data-menu-xmlid="app.xmlid"
+										t-att-data-action-id="app.actionID"
+										t-on-click.prevent="() => this._onAppClick(app)"
+										class="nav-link"
+										role="menuitem">
+										<img
+											t-if="app.webIconData"
+											class="mk_apps_sidebar_icon sidebar_img"
+											t-att-src="app.webIconData"/>
+										<img
+											t-else=""
+											class="mk_apps_sidebar_icon sidebar_img"
+											src="/base/static/description/icon.png"/>
+										<span class="mk_apps_sidebar_name sidebar_app_name">
+											<t t-out="app.label"/>
+										</span>
+									</a>
+								</li>
+							</t>
+						</t>
+					</t>
+
+					<!-- Loading State -->
+					<t t-if="state.isLoading">
+						<li class="text-center p-3">
+							<i class="fa fa-spinner fa-spin"/>
+						</li>
+					</t>
+				</ul>
+
+				<!-- Sidebar Logo -->
+				<div t-if="sidebarImageUrl" class="mk_apps_sidebar_logo sidebar_logo p-2">
+					<img class="img-fluid mx-auto logo_img" t-att-src="sidebarImageUrl" alt="Logo"/>
+				</div>
+			</div>
+		</div>
+	</t>
+	
+</templates>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Vista pública de empleados (hr.employee.public) — la que ven los
+        usuarios internos al navegar el directorio "Empleados".
+        Para SaaS de pequeños negocios ocultamos los campos corporativos
+        (Departamento, Puesto, Gerente, Instructor) que no aportan valor.
+        El admin no se ve afectado: usa el form custom innatum_agenda_admin_personal_form.
+    -->
+
+    <!-- Dejar solo kanban/list/form: eliminar hierarchy, activity, graph, pivot
+         de las acciones "Empleados" (hr.employee) y "Directorio" (hr.employee.public). -->
+    <function model="ir.actions.act_window.view" name="unlink">
+        <function model="ir.actions.act_window.view" name="search">
+            <value eval="[('view_mode', 'in', ['hierarchy', 'activity', 'graph', 'pivot']),
+                          ('act_window_id.res_model', 'in', ['hr.employee', 'hr.employee.public'])]"/>
+        </function>
+    </function>
+
+    <record id="hr_employee_public_view_search_inherit_innatum" model="ir.ui.view">
+        <field name="name">hr.employee.public.search.innatum.agenda.admin</field>
+        <field name="model">hr.employee.public</field>
+        <field name="inherit_id" ref="hr.hr_employee_public_view_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//searchpanel/field[@name='department_id']" position="replace"/>
+            <xpath expr="//filter[@name='group_department']" position="replace"/>
+            <xpath expr="//filter[@name='my_department']" position="replace"/>
+        </field>
+    </record>
+
+    <record id="hr_employee_public_view_form_inherit_innatum" model="ir.ui.view">
+        <field name="name">hr.employee.public.form.innatum.agenda.admin</field>
+        <field name="model">hr.employee.public</field>
+        <field name="inherit_id" ref="hr.hr_employee_public_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='department_id']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='job_id']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='parent_id']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='coach_id']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

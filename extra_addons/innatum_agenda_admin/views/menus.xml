@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Menú raíz: Mi Negocio (solo visible para el Admin de Agenda).
+         Renombrado para no colisionar con el grupo "Administración" de la sidebar. -->
+    <menuitem id="innatum_agenda_admin_menu_root"
+              name="Mi Negocio"
+              sequence="90"
+              groups="innatum_agenda_core.innatum_agenda_group_admin"/>
+
+    <!-- Personal -->
+    <menuitem id="innatum_agenda_admin_menu_personal"
+              name="Personal"
+              parent="innatum_agenda_admin_menu_root"
+              action="innatum_agenda_admin_personal_action"
+              sequence="10"/>
+
+    <!-- Empresa -->
+    <menuitem id="innatum_agenda_admin_menu_empresa"
+              name="Empresa"
+              parent="innatum_agenda_admin_menu_root"
+              action="innatum_agenda_admin_empresa_action"
+              sequence="20"/>
+
+</odoo>

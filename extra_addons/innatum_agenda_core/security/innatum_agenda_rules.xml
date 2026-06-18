@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Override de la rule estándar de res.partner para SaaS
+         multi-tenant.
+
+         La rule original de Odoo (base.res_partner_rule) dice que
+         partners con partner_share=False (typical Internal Users
+         como admins y empleados) son visibles para TODOS los users
+         sin importar su company. Eso filtra el email/login del admin
+         del tenant B hacia los users del tenant A — fuga de
+         información inaceptable en un SaaS.
+
+         Nuestra versión solo permite ver partners de las companies
+         del user actual, o partners "del sistema" (company_id=False
+         queda para Administrator, OdooBot, etc., que son globales).
+         ============================================================ -->
+
+    <record id="base.res_partner_rule" model="ir.rule">
+        <field name="name">res.partner company (multi-tenant override)</field>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else ['|', ('company_id', 'parent_of', company_ids), ('company_id', '=', False)]</field>
+    </record>
+
+    <!-- Override base.res_users_rule: admin sistema ve todos los usuarios
+         cross-company sin tocar el switcher; tenants ven solo internal
+         users + users de su company. -->
+    <record id="base.res_users_rule" model="ir.rule">
+        <field name="name">res.users company (multi-tenant override)</field>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else ['|', ('share', '=', False), ('company_ids', 'in', company_ids)]</field>
+    </record>
+
+    <!-- Override hr.hr_employee_comp_rule: admin sistema ve todos los
+         empleados cross-company. Tenants mantienen el filtro original. -->
+    <record id="hr.hr_employee_comp_rule" model="ir.rule">
+        <field name="name">Employee multi company rule (multi-tenant override)</field>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else ['|', '|', '|', ('company_id', 'in', company_ids + [False]), ('parent_id.user_id', '=', user.id), ('id', '=', user.employee_id.parent_id.id), ('user_id', '=', user.id)]</field>
+    </record>
+
+    <!-- ============================================================
+         Multi-company global rules (aislamiento entre tenants)
+
+         Se aplican con AND a todas las queries. Garantizan que ningún
+         usuario (ni siquiera con sudo a través de un grupo) vea datos
+         de otro tenant. Para data accesible desde el sitio público,
+         los controllers deben filtrar adicionalmente por
+         request.website.company_id porque corren con .sudo().
+         ============================================================ -->
+
+    <!-- Servicio es catálogo centralizado: el admin del tenant ve solo
+         los servicios que Innatum le habilitó (company_ids contiene su
+         company). El bypass de base.group_system permite a Innatum
+         (admin del sistema) ver TODO el catálogo y crear servicios
+         sin tenants aún asignados.
+
+         El bypass va DIRECTO en el XML aquí (no vía migration de planes)
+         porque base.group_system siempre existe en Odoo y se necesita
+         para que el admin pueda crear servicios al inicio. -->
+    <record id="rule_servicio_multi_company" model="ir.rule">
+        <field name="name">Servicio: aislamiento por tenant</field>
+        <field name="model_id" ref="model_innatum_agenda_servicio"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_ids', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_turno_multi_company" model="ir.rule">
+        <field name="name">Turno: aislamiento por tenant</field>
+        <field name="model_id" ref="model_innatum_agenda_turno"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_config_multi_company" model="ir.rule">
+        <field name="name">Planificación: aislamiento por tenant</field>
+        <field name="model_id" ref="model_innatum_agenda_config"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- ============================================================
+         Record Rules para innatum.agenda.config (Planificación)
+         ============================================================ -->
+
+    <!-- Operador/Admin: acceso total a planificaciones (dentro del tenant) -->
+    <record id="rule_config_operator_all" model="ir.rule">
+        <field name="name">Planificación: operador ve todo</field>
+        <field name="model_id" ref="model_innatum_agenda_config"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('innatum_agenda_group_operator'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- Usuario: solo sus planificaciones -->
+    <record id="rule_config_user_own" model="ir.rule">
+        <field name="name">Planificación: usuario ve solo las suyas</field>
+        <field name="model_id" ref="model_innatum_agenda_config"/>
+        <field name="domain_force">[
+            '|',
+            ('professional_id.user_id', '=', user.id),
+            ('professional_id', '=', False),
+        ]</field>
+        <field name="groups" eval="[(4, ref('innatum_agenda_group_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- ============================================================
+         Record Rules para innatum.agenda.turno
+         ============================================================ -->
+
+    <!-- Operador/Admin: acceso total a turnos (dentro del tenant) -->
+    <record id="rule_turno_operator_all" model="ir.rule">
+        <field name="name">Turno: operador ve todo</field>
+        <field name="model_id" ref="model_innatum_agenda_turno"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('innatum_agenda_group_operator'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- Usuario: solo sus turnos -->
+    <record id="rule_turno_user_own" model="ir.rule">
+        <field name="name">Turno: usuario ve solo los suyos</field>
+        <field name="model_id" ref="model_innatum_agenda_turno"/>
+        <field name="domain_force">[
+            ('professional_id.user_id', '=', user.id),
+        ]</field>
+        <field name="groups" eval="[(4, ref('innatum_agenda_group_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+</odoo>

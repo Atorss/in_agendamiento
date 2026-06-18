@@ -1,0 +1,511 @@
+// ============================================================
+// Innatum Agenda Backend Theme - Estilos custom (Indigo)
+// ============================================================
+// Los nombres "$inag-teal-*" se conservan por compatibilidad;
+// los VALORES son ahora rampa indigo (#4F46E5 primary).
+
+$inag-indigo-50:    #EEF2FF;
+$inag-indigo-100:   #E0E7FF;
+$inag-indigo-200:   #C7D2FE;
+$inag-indigo-300:   #A5B4FC;
+$inag-indigo-400:   #818CF8;
+$inag-indigo-500:   #6366F1;   // acento
+$inag-indigo-600:   #4F46E5;   // primary
+$inag-indigo-700:   #4338CA;   // primary-dark
+$inag-indigo-800:   #3730A3;
+$inag-indigo-900:   #312E81;   // sidebar hover bg
+$inag-indigo-950:   #1E1B4B;   // navbar / sidebar
+
+$inag-text:       #0F172A;
+$inag-text-light: #475569;
+$inag-text-muted: #94A3B8;
+$inag-bg:         #F8FAFC;
+$inag-bg-card:    #FFFFFF;
+$inag-divider:    #E2E8F0;
+
+$inag-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+// ===== TIPOGRAFIA GLOBAL =====
+.o_web_client,
+.o_action_manager,
+.o_main_navbar,
+.o_field_widget,
+.o_form_view,
+.o_list_view,
+.o_kanban_view {
+    font-family: $inag-font;
+    -webkit-font-smoothing: antialiased;
+}
+
+// ===== NAVBAR PRINCIPAL (indigo oscuro) =====
+.o_main_navbar {
+    background-color: $inag-indigo-950 !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+    min-height: 48px;
+    height: 48px;
+    color: $inag-indigo-100;
+
+    .o_navbar_apps_menu,
+    .o_menu_brand,
+    .o_navbar_apps_menu > button {
+        color: $inag-indigo-100 !important;
+        font-family: $inag-font;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        font-size: 12px;
+        text-transform: uppercase;
+    }
+
+    .o_menu_brand {
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        color: #fff !important;
+
+        &::after {
+            content: '';
+            display: inline-block;
+            width: 1px;
+            height: 16px;
+            background: $inag-indigo-400;
+            margin-left: 14px;
+            vertical-align: middle;
+            opacity: 0.45;
+        }
+    }
+
+    .o_menu_sections > .o-dropdown,
+    .o_menu_sections > a {
+        color: $inag-indigo-200 !important;
+        font-weight: 500;
+        font-size: 12px;
+        letter-spacing: 0.5px;
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        transition: color 0.15s ease, background-color 0.15s ease;
+
+        &:hover {
+            color: #fff !important;
+            background-color: rgba(255, 255, 255, 0.06) !important;
+        }
+
+        &.show, &.active, &.o-dropdown--active {
+            color: #fff !important;
+            background-color: rgba(255, 255, 255, 0.08) !important;
+        }
+
+        &:focus, &:focus-visible {
+            outline: none !important;
+            box-shadow: none !important;
+        }
+    }
+
+    .o_user_menu button { color: $inag-indigo-100 !important; }
+
+    // Iconos del navbar (campana, etc.) en claro
+    i.fa, .fa { color: $inag-indigo-200 !important; }
+}
+
+// ===== CONTROL PANEL =====
+.o_control_panel {
+    background: $inag-bg-card;
+    border-bottom: 1px solid $inag-divider;
+
+    .breadcrumb-item {
+        font-family: $inag-font;
+        font-size: 13px;
+        font-weight: 500;
+        color: $inag-text-light;
+
+        &.active {
+            color: $inag-indigo-700;
+            font-weight: 700;
+        }
+
+        a {
+            color: $inag-text-muted;
+            &:hover { color: $inag-indigo-700; }
+        }
+    }
+}
+
+// ===== BOTONES =====
+.btn-primary {
+    background-color: $inag-indigo-600 !important;
+    border-color: $inag-indigo-600 !important;
+    color: #fff !important;
+    font-family: $inag-font;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 12px;
+    border-radius: 8px;
+    padding: 8px 22px;
+    transition: all 0.25s ease;
+
+    &:hover, &:focus, &:active {
+        background-color: $inag-indigo-700 !important;
+        border-color: $inag-indigo-700 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba($inag-indigo-600, 0.35);
+    }
+}
+
+.btn-secondary {
+    background-color: $inag-bg-card !important;
+    border: 1px solid $inag-divider !important;
+    color: $inag-text !important;
+    font-family: $inag-font;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 12px;
+    border-radius: 8px;
+
+    &:hover {
+        background-color: $inag-indigo-50 !important;
+        border-color: $inag-indigo-600 !important;
+        color: $inag-indigo-700 !important;
+    }
+}
+
+.btn-link {
+    color: $inag-indigo-700 !important;
+    &:hover { color: $inag-indigo-800 !important; }
+}
+
+.o_form_button_create,
+.o_list_button_add,
+.o-kanban-button-new {
+    background: $inag-indigo-600 !important;
+    color: #fff !important;
+    border-color: $inag-indigo-600 !important;
+}
+
+// ===== FORM VIEW =====
+.o_form_view {
+    background: $inag-bg;
+
+    .o_form_sheet_bg {
+        background: $inag-bg;
+        padding: 0 !important;
+    }
+
+    .o_form_sheet {
+        background: $inag-bg-card;
+        border: 1px solid $inag-divider;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 32px 40px !important;
+        border-radius: 8px;
+    }
+
+    .o_form_statusbar {
+        background: $inag-bg-card;
+        border-bottom: 1px solid $inag-divider;
+
+        .o_statusbar_status .btn {
+            font-family: $inag-font;
+            font-weight: 600;
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: $inag-text-muted;
+
+            &.btn-primary,
+            &.o_arrow_button_current {
+                background: $inag-indigo-600 !important;
+                color: #fff !important;
+                border-color: $inag-indigo-600 !important;
+            }
+        }
+    }
+
+    label, .o_form_label {
+        font-family: $inag-font;
+        font-size: 11px;
+        font-weight: 600;
+        color: $inag-text-light;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .o_horizontal_separator {
+        font-family: $inag-font;
+        font-size: 16px;
+        font-weight: 700;
+        color: $inag-indigo-700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border-bottom: 1px solid $inag-divider;
+        padding-bottom: 8px;
+        margin-bottom: 16px;
+    }
+
+    .o_notebook > .o_notebook_headers {
+        border-bottom: 1px solid $inag-divider;
+
+        .nav-link {
+            font-family: $inag-font;
+            font-size: 11px;
+            font-weight: 700;
+            color: $inag-text-muted;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: none;
+            padding: 12px 18px;
+            position: relative;
+
+            &.active {
+                color: $inag-indigo-700;
+                background: transparent;
+
+                &::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -1px;
+                    left: 0;
+                    right: 0;
+                    height: 2px;
+                    background: $inag-indigo-600;
+                }
+            }
+
+            &:hover:not(.active) { color: $inag-indigo-600; }
+        }
+    }
+}
+
+// ===== LIST VIEW =====
+.o_list_view {
+    background: $inag-bg-card;
+    width: 100% !important;
+    max-width: 100% !important;
+
+    table.o_list_table {
+        thead {
+            background: $inag-indigo-50;
+            border-bottom: 1px solid $inag-divider;
+
+            th {
+                font-family: $inag-font;
+                font-size: 11px;
+                font-weight: 700;
+                color: $inag-indigo-700;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+                padding: 12px 8px;
+                border-color: $inag-divider;
+            }
+        }
+
+        tbody tr {
+            transition: background-color 0.15s ease;
+            &:hover { background: $inag-indigo-50; }
+            &.o_data_row_selected { background: rgba($inag-indigo-300, 0.30); }
+        }
+
+        td {
+            font-size: 13px;
+            color: $inag-text;
+            padding: 10px 8px;
+            border-color: $inag-divider;
+        }
+    }
+}
+
+// ===== KANBAN =====
+.o_kanban_view {
+    background: $inag-bg;
+    width: 100% !important;
+    max-width: 100% !important;
+
+    .o_kanban_record {
+        background: $inag-bg-card;
+        border: 1px solid $inag-divider;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        transition: all 0.25s ease;
+
+        &:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 22px rgba($inag-indigo-600, 0.15);
+            border-color: $inag-indigo-400;
+        }
+    }
+}
+
+// ===== SEARCH BAR =====
+.o_searchview {
+    background: $inag-bg-card;
+    border: 1px solid $inag-divider;
+    border-radius: 8px;
+
+    input {
+        font-family: $inag-font;
+        color: $inag-text;
+    }
+}
+
+// ===== APPSBAR / SIDEBAR LATERAL MuK (indigo oscuro) =====
+.mk_apps_sidebar_panel {
+    background-color: $inag-indigo-950 !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.25) !important;
+
+    .mk_apps_sidebar {
+        .sidebar_toggle a {
+            color: $inag-indigo-100 !important;
+            border-radius: 6px !important;
+
+            &:hover {
+                background: rgba($inag-indigo-500, 0.20) !important;
+                color: #fff !important;
+            }
+        }
+
+        .mk_apps_sidebar_menu {
+            > li > a,
+            > li > div.nav-link,
+            .open_sidebar-link,
+            .sidebar_app_name,
+            .menu_dropdown a.nav-link,
+            .menu_dropdown_sub a.nav-link {
+                color: $inag-indigo-100 !important;
+                font-family: $inag-font !important;
+                font-size: 12px !important;
+                font-weight: 500 !important;
+                letter-spacing: 0.3px !important;
+            }
+
+            > li:hover > a,
+            > li:hover > div.nav-link {
+                background: rgba($inag-indigo-500, 0.18) !important;
+                color: #fff !important;
+            }
+
+            > li.active > a {
+                background: rgba($inag-indigo-500, 0.28) !important;
+                color: #fff !important;
+                border-left: 2px solid $inag-indigo-500 !important;
+            }
+
+            > li.first_level > .open_sidebar-link {
+                border-left-color: transparent !important;
+
+                &:hover {
+                    background: rgba($inag-indigo-500, 0.18) !important;
+                    border-left-color: $inag-indigo-500 !important;
+                    color: #fff !important;
+                }
+            }
+
+            li.second_level > .open_sidebar-link {
+                border-left-color: rgba($inag-indigo-500, 0.30) !important;
+
+                &:hover {
+                    background: rgba($inag-indigo-500, 0.14) !important;
+                    border-left-color: $inag-indigo-500 !important;
+                }
+            }
+
+            .menu_dropdown a.nav-link,
+            .menu_dropdown_sub a.nav-link {
+                border-left: 3px solid transparent !important;
+
+                &:hover {
+                    background: rgba($inag-indigo-500, 0.18) !important;
+                    color: #fff !important;
+                    border-left-color: $inag-indigo-500 !important;
+                }
+
+                &.active {
+                    background: rgba($inag-indigo-500, 0.28) !important;
+                    color: #fff !important;
+                    border-left-color: $inag-indigo-500 !important;
+                    font-weight: 600 !important;
+                }
+            }
+
+            i.fa { color: $inag-indigo-300 !important; }
+        }
+
+        .mk_apps_sidebar_logo {
+            opacity: 0.55;
+            filter: brightness(1.2);
+        }
+    }
+}
+
+// ===== CHATTER =====
+.o-mail-Chatter {
+    .o-mail-Message { font-family: $inag-font; }
+    .o-mail-Composer {
+        border-color: $inag-divider;
+        textarea { font-family: $inag-font; }
+    }
+}
+
+// ===== BADGES =====
+.badge {
+    font-family: $inag-font;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    border-radius: 4px;
+}
+
+// ===== DROPDOWNS =====
+.dropdown-menu {
+    border: 1px solid $inag-divider;
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+    font-family: $inag-font;
+
+    .dropdown-item {
+        font-size: 13px;
+        color: $inag-text;
+        padding: 8px 16px;
+
+        &:hover, &:focus { background: $inag-indigo-50; color: $inag-indigo-700; }
+        &.active { background: $inag-indigo-600; color: #fff; }
+    }
+}
+
+// ===== MARCADO SUTIL DE CAMPOS REQUIRED =====
+.o_form_view {
+    --o-input-border-required: #{$inag-indigo-600};
+
+    td.o_td_label:has(+ td .o_field_widget.o_required_modifier) > .o_form_label::after,
+    .o_cell:has(+ .o_cell .o_field_widget.o_required_modifier) > .o_form_label::after,
+    .o_wrap_label:has(+ .o_field_widget.o_required_modifier) > .o_form_label::after {
+        content: '*';
+        color: $inag-indigo-600;
+        font-weight: 700;
+        margin-left: 4px;
+        font-size: 12px;
+        vertical-align: super;
+        line-height: 1;
+    }
+}
+
+// ===== LOGIN =====
+.oe_login_form,
+.oe_signup_form {
+    .form-control {
+        border: 1px solid $inag-divider !important;
+        border-radius: 8px !important;
+
+        &:focus {
+            border-color: $inag-indigo-600 !important;
+            box-shadow: 0 0 0 3px rgba($inag-indigo-600, 0.15) !important;
+        }
+    }
+
+    .btn-primary {
+        background: $inag-indigo-600 !important;
+        border-color: $inag-indigo-600 !important;
+        border-radius: 8px;
+        letter-spacing: 0.5px;
+    }
+}

@@ -1,0 +1,59 @@
+// =============================================================================
+// NAVBAR - Glass bar with depth
+// =============================================================================
+.o_main_navbar {
+    border-bottom: none !important;
+    box-shadow: none;
+    backdrop-filter: blur(12px);
+    z-index: 1;
+
+    // Menu items con glass hover
+    .o_menu_sections > .o_nav_entry,
+    .o_menu_sections > .dropdown > .dropdown-toggle {
+        border-radius: 8px;
+        margin: 4px 2px;
+        padding: 6px 14px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid transparent;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(8px);
+        }
+
+        &.active, &.show {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.08);
+            font-weight: 500;
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.04);
+        }
+    }
+
+    // Systray icons con glass hover
+    .o_menu_systray > .o-dropdown {
+        > button, > a {
+            border-radius: 8px;
+            margin: 3px 1px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.1);
+                box-shadow: 0 0 8px rgba(255, 255, 255, 0.04);
+            }
+        }
+    }
+
+    // Breadcrumb con hover animado
+    .o_breadcrumb {
+        .o_back_button {
+            border-radius: 8px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.1);
+                transform: translateX(-2px);
+            }
+        }
+    }
+}

@@ -1,0 +1,320 @@
+# -*- coding: utf-8 -*-
+"""Wizard de provisioning de tenants.
+
+Único punto de entrada para crear un tenant SaaS. Garantiza que TODOS los
+artefactos nazcan correctamente alineados con la arquitectura
+multi-tenant: company, website (con subdominio), admin user del tenant
+y suscripción inicial. Setea explícitamente company_id en los partners
+estructurales para evitar la fuga "Peluquería ve Veterinaria PetCare".
+"""
+
+import logging
+import re
+
+from dateutil.relativedelta import relativedelta
+
+from odoo import models, fields, api, _
+from odoo.exceptions import ValidationError, UserError
+
+_logger = logging.getLogger(__name__)
+
+SUBDOMAIN_RE = re.compile(r'^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$')
+
+
+class InAgendaTenantWizard(models.TransientModel):
+    """Wizard que crea un tenant atómicamente."""
+    _name = 'in_agenda.tenant.wizard'
+    _description = 'Wizard: Crear Tenant'
+
+    # --- Datos del tenant ---
+    name = fields.Char(
+        string='Nombre del tenant', required=True,
+        help='Razón social o nombre comercial. Ej: "Peluquería Estilo".',
+    )
+    subdomain = fields.Char(
+        string='Subdominio', required=True,
+        help='Subdominio del tenant. Ej: "estilo" → estilo.innatum.com. '
+             'Solo letras minúsculas, números y guiones. Debe ser único.',
+    )
+    base_domain = fields.Char(
+        string='Dominio base', required=True,
+        default='innatum.com',
+        help='Dominio raíz donde viven los subdominios. En testing puede '
+             'ser "localhost:8018".',
+    )
+    domain_scheme = fields.Selection(
+        [('http', 'http://'), ('https', 'https://')],
+        string='Protocolo', required=True, default='https',
+    )
+
+    # --- Admin del tenant ---
+    admin_email = fields.Char(string='Email del admin', required=True)
+    admin_name = fields.Char(string='Nombre del admin')
+    admin_password = fields.Char(
+        string='Password inicial', required=True,
+        help='Mínimo 8 caracteres. El admin debería cambiarlo al primer login.',
+    )
+    crear_empleado_admin = fields.Boolean(
+        string='El admin atiende como profesional',
+        default=True,
+        help='Si está tildado, se crea automáticamente un hr.employee '
+             'asociado al admin del tenant. Es el caso normal: el dueño/a '
+             'también atiende clientes. Destildá solo si el admin SOLO va '
+             'a gestionar (no atender) y contratará colaboradores aparte.',
+    )
+    # Datos del admin como profesional (solo aplican si
+    # crear_empleado_admin=True). Mismos campos que el wizard de colaborador
+    # para mantener integridad entre ambos flujos.
+    admin_identification_id = fields.Char(
+        string='Cédula / Identificación del admin',
+    )
+    admin_work_phone = fields.Char(
+        string='Teléfono del admin',
+    )
+    admin_job_title = fields.Char(
+        string='Cargo / Puesto del admin',
+        help='Ej: "Dueña", "Estilista principal", "Veterinario". '
+             'Se muestra en el directorio público del sitio web.',
+    )
+
+    # --- Suscripción ---
+    plan_id = fields.Many2one(
+        'in_agenda.plan', string='Plan', required=True,
+        domain=[('active', '=', True)],
+    )
+    fecha_inicio = fields.Date(
+        string='Inicio', required=True, default=fields.Date.today,
+    )
+    duracion_meses = fields.Integer(
+        string='Duración (meses)', required=True, default=1,
+    )
+    state_inicial = fields.Selection([
+        ('trial', 'Trial'),
+        ('active', 'Activa'),
+    ], string='Estado inicial', default='active', required=True)
+
+    # --- Catálogo de servicios habilitados ---
+    servicio_ids = fields.Many2many(
+        'innatum.agenda.servicio',
+        string='Servicios habilitados',
+        help='Servicios del catálogo de Innatum que este tenant podrá '
+             'ofrecer. Si no aparece el servicio que necesitas, primero '
+             'crealo en "Innatum SaaS → Catálogo de servicios".',
+    )
+
+    # --- Localización ---
+    country_id = fields.Many2one(
+        'res.country', string='País',
+        default=lambda self: self.env.ref('base.ec', raise_if_not_found=False),
+    )
+    currency_id = fields.Many2one(
+        'res.currency', string='Moneda',
+        default=lambda self: self._default_currency(),
+    )
+    timezone = fields.Selection(
+        lambda self: self._tz_get(),
+        string='Zona horaria', default='America/Guayaquil', required=True,
+    )
+
+    vertical = fields.Selection(
+        selection=lambda self: self.env['res.company']._fields['vertical'].selection,
+        string='Vertical', default='generic', required=True,
+        help='Define el look del sitio público del tenant. '
+             'Si elegís "odontológico" debe estar instalado '
+             '`innatum_agenda_web_odonto`.',
+    )
+
+    @api.model
+    def _default_currency(self):
+        usd = self.env.ref('base.USD', raise_if_not_found=False)
+        return usd.id if usd else False
+
+    @api.model
+    def _tz_get(self):
+        return self.env['res.partner']._fields['tz']._description_selection(self.env)
+
+    # ------------------------------------------------------------------
+    # Validaciones
+    # ------------------------------------------------------------------
+
+    @api.constrains('subdomain')
+    def _check_subdomain(self):
+        for rec in self:
+            if not SUBDOMAIN_RE.match(rec.subdomain or ''):
+                raise ValidationError(
+                    'Subdominio inválido. Solo letras minúsculas, números '
+                    'y guiones, sin empezar ni terminar con guión.'
+                )
+
+    @api.constrains('admin_password')
+    def _check_password(self):
+        for rec in self:
+            if rec.admin_password and len(rec.admin_password) < 8:
+                raise ValidationError(
+                    'El password debe tener al menos 8 caracteres.'
+                )
+
+    @api.constrains('duracion_meses')
+    def _check_duracion(self):
+        for rec in self:
+            if rec.duracion_meses < 1:
+                raise ValidationError(
+                    'La duración debe ser al menos 1 mes.'
+                )
+
+    # ------------------------------------------------------------------
+    # Provisioning atómico
+    # ------------------------------------------------------------------
+
+    def action_provision_tenant(self):
+        """Crea atómicamente todos los artefactos del tenant.
+
+        Si cualquier paso falla, la transacción se rollback y nada queda
+        creado. El admin del sistema puede reintentar con datos corregidos.
+        """
+        self.ensure_one()
+
+        # 1. Detectar colisiones de subdominio antes de crear nada
+        full_domain = '%s://%s.%s' % (
+            self.domain_scheme, self.subdomain, self.base_domain,
+        )
+        existing_website = self.env['website'].sudo().search(
+            [('domain', '=', full_domain)], limit=1,
+        )
+        if existing_website:
+            raise UserError(
+                'Ya existe un website con el dominio %s '
+                '(tenant: %s).' % (
+                    full_domain, existing_website.company_id.name,
+                )
+            )
+
+        # 2. Detectar colisión de login del admin
+        existing_user = self.env['res.users'].sudo().search(
+            [('login', '=', self.admin_email)], limit=1,
+        )
+        if existing_user:
+            raise UserError(
+                'Ya existe un usuario con el email %s. '
+                'Elegí otro email o reusá esa cuenta.' % self.admin_email,
+            )
+
+        # 3. Crear la company
+        company_vals = {
+            'name': self.name,
+            'currency_id': self.currency_id.id if self.currency_id else False,
+            'country_id': self.country_id.id if self.country_id else False,
+            'vertical': self.vertical,
+        }
+        company = self.env['res.company'].sudo().create(company_vals)
+
+        # 3.1 Setear company_id en el partner asociado a la company
+        # (Odoo lo crea con company_id=False por default → fuga multi-tenant)
+        company.partner_id.sudo().write({
+            'company_id': company.id,
+            'tz': self.timezone,
+        })
+
+        # 4. Crear el website
+        website_vals = {
+            'name': self.name,
+            'domain': full_domain,
+            'company_id': company.id,
+        }
+        website = self.env['website'].sudo().create(website_vals)
+
+        # 4.1 Setear company_id en el public user del website
+        # (Odoo crea uno por website con company_id=False)
+        if website.user_id:
+            website.user_id.partner_id.sudo().write({
+                'company_id': company.id,
+            })
+
+        # 5. Crear el admin user del tenant
+        groups_admin = [
+            self.env.ref('base.group_user').id,
+            self.env.ref('innatum_agenda_core.innatum_agenda_group_admin').id,
+        ]
+
+        admin = self.env['res.users'].sudo().with_context(
+            no_reset_password=True,
+        ).create({
+            'name': self.admin_name or self.admin_email,
+            'login': self.admin_email,
+            'email': self.admin_email,
+            'password': self.admin_password,
+            'company_id': company.id,
+            'company_ids': [(6, 0, [company.id])],
+            'groups_id': [(6, 0, groups_admin)],
+            'tz': self.timezone,
+        })
+
+        # 5.1 Setear company_id en el partner del admin
+        admin.partner_id.sudo().write({
+            'company_id': company.id,
+            'tz': self.timezone,
+        })
+
+        # 6. Crear la suscripción
+        fecha_fin = self.fecha_inicio + relativedelta(months=self.duracion_meses)
+        suscripcion = self.env['in_agenda.suscripcion'].sudo().create({
+            'company_id': company.id,
+            'plan_id': self.plan_id.id,
+            'fecha_inicio': self.fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'ai_margin_pct': self.plan_id.ai_margin_pct_default,
+            'state': self.state_inicial,
+        })
+
+        # 6.1 Asignar los servicios habilitados al tenant (catálogo Innatum)
+        if self.servicio_ids:
+            for servicio in self.servicio_ids:
+                servicio.sudo().write({
+                    'company_ids': [(4, company.id)],
+                })
+
+        # 6.2 Crear hr.employee del admin si va a atender como profesional.
+        # Caso típico: el dueño/a del tenant también atiende clientes.
+        # Si destildó "El admin atiende como profesional", saltamos este
+        # paso (admin solo gestiona, los profesionales se crean luego con
+        # el wizard "Nuevo colaborador").
+        if self.crear_empleado_admin:
+            employee = self.env['hr.employee'].sudo().create({
+                'name': self.admin_name or self.admin_email,
+                'work_email': self.admin_email,
+                'work_phone': self.admin_work_phone or False,
+                'job_title': self.admin_job_title or False,
+                'identification_id': self.admin_identification_id or False,
+                'user_id': admin.id,
+                'company_id': company.id,
+            })
+            # Si Innatum habilitó servicios para este tenant, los anotamos
+            # como referencia para que después se asignen en la planificación.
+            if self.servicio_ids:
+                nombres = ', '.join(self.servicio_ids.mapped('name'))
+                employee.sudo().message_post(
+                    body=_('Servicios habilitados en este tenant: %s') % nombres,
+                )
+            _logger.info(
+                'Tenant provisioning: empleado admin creado emp=%s user=%s',
+                employee.id, admin.id,
+            )
+
+        # 7. Agregar la nueva company al user actual (Innatum admin) para
+        # que pueda gestionar el tenant y para que el frontend no falle
+        # al abrir registros de la nueva company.
+        self.env.user.sudo().write({
+            'company_ids': [(4, company.id)],
+        })
+
+        _logger.info(
+            'Tenant provisioning OK: company=%s website=%s admin=%s susc=%s',
+            company.id, website.id, admin.id, suscripcion.id,
+        )
+
+        # 8. Recargar el cliente web para que la nueva company aparezca
+        # en el company switcher del user antes de navegar a la suscripción.
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'reload',
+        }

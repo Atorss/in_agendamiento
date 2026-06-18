@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- Inyectar el widget de chatbot en todas las páginas del sitio web.
+         Solo se renderiza si el engine reporta que IA está disponible
+         para esta company. Otros módulos (ej. innatum_agenda_planes)
+         pueden override _is_chatbot_available_for_company para esconder
+         el ícono cuando el tenant no tiene saldo IA. -->
+    <template id="chatbot_widget_inject" inherit_id="website.layout" name="Innatum Chatbot Widget">
+        <xpath expr="//div[@id='wrapwrap']" position="inside">
+            <t t-if="request.website and request.env['innatum.ai.engine'].sudo()._is_chatbot_available_for_company(request.website.company_id)">
+                <div id="innatum-chatbot-root" class="innatum-chatbot-root"/>
+            </t>
+        </xpath>
+    </template>
+
+</odoo>

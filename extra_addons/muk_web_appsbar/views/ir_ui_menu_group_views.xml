@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Tree View -->
+    <record id="view_ir_ui_menu_group_list" model="ir.ui.view">
+        <field name="name">ir.ui.menu.group.list</field>
+        <field name="model">ir.ui.menu.group</field>
+        <field name="arch" type="xml">
+            <list string="Menu Groups">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="parent_id"/>
+                <field name="level"/>
+                <field name="menu_ids" widget="many2many_tags"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_ir_ui_menu_group_form" model="ir.ui.view">
+        <field name="name">ir.ui.menu.group.form</field>
+        <field name="model">ir.ui.menu.group</field>
+        <field name="arch" type="xml">
+            <form string="Menu Group">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="parent_id"/>
+                            <field name="sequence"/>
+                        </group>
+                        <group>
+                            <field name="level"/>
+                            <field name="active" invisible="1"/>
+                            <field name="icon" widget="image" options="{'size': [90, 90]}"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Menus" name="menus">
+                            <field name="menu_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="web_icon"/>
+                                    <field name="action"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Child Groups" name="children">
+                            <field name="child_ids">
+                                <list>
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="level"/>
+                                    <field name="active" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_ir_ui_menu_group_search" model="ir.ui.view">
+        <field name="name">ir.ui.menu.group.search</field>
+        <field name="model">ir.ui.menu.group</field>
+        <field name="arch" type="xml">
+            <search string="Menu Groups">
+                <field name="name"/>
+                <field name="parent_id"/>
+                <filter string="Root Groups" name="root_groups" domain="[('parent_id', '=', False)]"/>
+                <filter string="Level 2" name="level_2" domain="[('level', '=', 2)]"/>
+                <filter string="Level 3" name="level_3" domain="[('level', '=', 3)]"/>
+                <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
+                <filter string="Parent Group" name="group_parent" context="{'group_by': 'parent_id'}"/>
+                <filter string="Level" name="group_level" context="{'group_by': 'level'}"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_ir_ui_menu_group" model="ir.actions.act_window">
+        <field name="name">Grupos de Menú Sidebar</field>
+        <field name="res_model">ir.ui.menu.group</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_root_groups': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crear un nuevo grupo de menú para el sidebar
+            </p>
+            <p>
+                Organiza la navegación del sidebar agrupando aplicaciones en categorías.
+                Puedes crear estructuras jerárquicas de hasta 3 niveles.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem id="menu_ir_ui_menu_group" name="Grupos de Menú Sidebar" parent="base.menu_administration" action="action_ir_ui_menu_group" groups="base.group_system" sequence="101"/>
+
+</odoo>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="0">
+
+    <!--
+        El usuario con grupo "Puede facturar" solo puede leer/editar/borrar
+        sale.orders cuyo turno asociado tenga professional_id.user_id = él.
+
+        perm_create=False intencional: al crear el sale.order desde
+        action_facturar, el turno aún no apunta a la order (la asignación
+        ocurre justo después). Si la regla aplicara a create, fallaría con
+        AccessError. La ACL del CSV ya autoriza el create; el turno se
+        vincula inmediatamente y la regla restringe accesos posteriores.
+    -->
+    <record id="sale_order_puede_facturar_own_only" model="ir.rule">
+        <field name="name">Sale Order: solo pedidos de turnos del propio profesional</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="groups" eval="[(4, ref('innatum_agenda_facturacion.innatum_agenda_group_puede_facturar'))]"/>
+        <field name="domain_force">[('innatum_turno_ids.professional_id.user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <record id="sale_order_line_puede_facturar_own_only" model="ir.rule">
+        <field name="name">Sale Order Line: solo líneas de turnos del propio profesional</field>
+        <field name="model_id" ref="sale.model_sale_order_line"/>
+        <field name="groups" eval="[(4, ref('innatum_agenda_facturacion.innatum_agenda_group_puede_facturar'))]"/>
+        <field name="domain_force">[('order_id.innatum_turno_ids.professional_id.user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!--
+        Account Move: el usuario "puede facturar" solo ve facturas y notas
+        de crédito de cliente cuyo invoice_user_id sea él. perm_create=False
+        para no chocar con el wizard sale.advance.payment.inv que crea la
+        factura sin tener al usuario aún (la ACL del CSV autoriza el create).
+    -->
+    <record id="account_move_puede_facturar_own_only" model="ir.rule">
+        <field name="name">Account Move: solo facturas del propio usuario</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="groups" eval="[(4, ref('innatum_agenda_facturacion.innatum_agenda_group_puede_facturar'))]"/>
+        <field name="domain_force">[
+            ('move_type', 'in', ('out_invoice', 'out_refund')),
+            ('invoice_user_id', '=', user.id),
+        ]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <record id="account_move_line_puede_facturar_own_only" model="ir.rule">
+        <field name="name">Account Move Line: solo líneas de facturas propias</field>
+        <field name="model_id" ref="account.model_account_move_line"/>
+        <field name="groups" eval="[(4, ref('innatum_agenda_facturacion.innatum_agenda_group_puede_facturar'))]"/>
+        <field name="domain_force">[
+            ('move_id.move_type', 'in', ('out_invoice', 'out_refund')),
+            ('move_id.invoice_user_id', '=', user.id),
+        ]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+</odoo>

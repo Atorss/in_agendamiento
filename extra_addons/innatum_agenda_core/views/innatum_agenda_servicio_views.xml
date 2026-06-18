@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- LIST VIEW (read-only para tenant; CRUD para Innatum admin que la
+         hereda en innatum_agenda_planes) -->
+    <record id="innatum_agenda_servicio_view_list" model="ir.ui.view">
+        <field name="name">innatum.agenda.servicio.list</field>
+        <field name="model">innatum.agenda.servicio</field>
+        <field name="arch" type="xml">
+            <list duplicate="0" string="Servicios" create="false" delete="false">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="description" optional="hide"/>
+                <field name="active" widget="boolean_toggle" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- FORM VIEW (read-only para tenant) -->
+    <record id="innatum_agenda_servicio_view_form" model="ir.ui.view">
+        <field name="name">innatum.agenda.servicio.form</field>
+        <field name="model">innatum.agenda.servicio</field>
+        <field name="arch" type="xml">
+            <form duplicate="0" string="Servicio" create="false" edit="false" delete="false">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code" readonly="1"/>
+                            <field name="active" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Descripción">
+                        <field name="description" nolabel="1" readonly="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ACTION para el menú del tenant (read-only) -->
+    <record id="innatum_agenda_servicio_action" model="ir.actions.act_window">
+        <field name="name">Servicios</field>
+        <field name="res_model">innatum.agenda.servicio</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Sin servicios disponibles
+            </p>
+            <p>
+                Los servicios son administrados por Innatum y se habilitan
+                para tu tenant al momento de tu suscripción. Si necesitas
+                un servicio adicional, contacta al equipo de Innatum.
+            </p>
+        </field>
+    </record>
+
+</odoo>

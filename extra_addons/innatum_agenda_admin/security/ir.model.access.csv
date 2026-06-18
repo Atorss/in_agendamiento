@@ -1,0 +1,8 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_wizard_set_password_admin,innatum.agenda.admin.wizard.set_password.admin,model_innatum_agenda_admin_wizard_set_password,innatum_agenda_core.innatum_agenda_group_admin,1,1,1,1
+access_hr_employee_innatum_agenda_admin,hr.employee.innatum.agenda.admin,hr.model_hr_employee,innatum_agenda_core.innatum_agenda_group_admin,1,1,1,0
+access_hr_department_innatum_agenda_admin,hr.department.innatum.agenda.admin,hr.model_hr_department,innatum_agenda_core.innatum_agenda_group_admin,1,0,0,0
+access_hr_job_innatum_agenda_admin,hr.job.innatum.agenda.admin,hr.model_hr_job,innatum_agenda_core.innatum_agenda_group_admin,1,0,0,0
+access_res_company_innatum_agenda_admin,res.company.innatum.agenda.admin,base.model_res_company,innatum_agenda_core.innatum_agenda_group_admin,1,1,0,0
+access_innatum_agenda_config_user_planificar,innatum.agenda.config.user.planificar,innatum_agenda_core.model_innatum_agenda_config,innatum_agenda_core.innatum_agenda_group_user,1,1,1,1
+access_innatum_agenda_config_line_user_planificar,innatum.agenda.config.line.user.planificar,innatum_agenda_core.model_innatum_agenda_config_line,innatum_agenda_core.innatum_agenda_group_user,1,1,1,1

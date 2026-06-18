@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Vista CRUD del catálogo de servicios para Innatum admin.
+
+         Hereda la vista del tenant (que es read-only) y reactiva los
+         atributos create/edit/delete. Muestra también el M2M
+         company_ids para que Innatum vea/asigne qué tenants ofrecen
+         cada servicio.
+         ============================================================ -->
+
+    <record id="view_innatum_agenda_servicio_catalogo_list" model="ir.ui.view">
+        <field name="name">innatum.agenda.servicio.catalogo.list</field>
+        <field name="model">innatum.agenda.servicio</field>
+        <field name="inherit_id" ref="innatum_agenda_core.innatum_agenda_servicio_view_list"/>
+        <field name="mode">primary</field>
+        <field name="priority">10</field>
+        <field name="arch" type="xml">
+            <list position="attributes">
+                <attribute name="create">true</attribute>
+                <attribute name="delete">true</attribute>
+            </list>
+            <field name="name" position="after">
+                <field name="company_ids" widget="many2many_tags"
+                       options="{'no_create': True}"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_innatum_agenda_servicio_catalogo_form" model="ir.ui.view">
+        <field name="name">innatum.agenda.servicio.catalogo.form</field>
+        <field name="model">innatum.agenda.servicio</field>
+        <field name="inherit_id" ref="innatum_agenda_core.innatum_agenda_servicio_view_form"/>
+        <field name="mode">primary</field>
+        <field name="priority">10</field>
+        <field name="arch" type="xml">
+            <form position="attributes">
+                <attribute name="create">true</attribute>
+                <attribute name="edit">true</attribute>
+                <attribute name="delete">true</attribute>
+            </form>
+            <!-- Hacer todos los campos editables -->
+            <xpath expr="//field[@name='name']" position="attributes">
+                <attribute name="readonly">false</attribute>
+            </xpath>
+            <xpath expr="//field[@name='code']" position="attributes">
+                <attribute name="readonly">false</attribute>
+            </xpath>
+            <xpath expr="//field[@name='active']" position="attributes">
+                <attribute name="readonly">false</attribute>
+            </xpath>
+            <xpath expr="//field[@name='description']" position="attributes">
+                <attribute name="readonly">false</attribute>
+            </xpath>
+            <!-- Agregar campo Tenants habilitados (M2M) con su label natural -->
+            <xpath expr="//field[@name='code']" position="after">
+                <field name="company_ids" widget="many2many_tags"
+                       options="{'no_create': True}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Action: catálogo con vistas CRUD -->
+    <record id="action_innatum_agenda_servicio_catalogo" model="ir.actions.act_window">
+        <field name="name">Catálogo de servicios</field>
+        <field name="res_model">innatum.agenda.servicio</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_ids" eval="[
+            (5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_innatum_agenda_servicio_catalogo_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_innatum_agenda_servicio_catalogo_form')}),
+        ]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Aún no hay servicios en el catálogo
+            </p>
+            <p>
+                Crear los servicios que vas a ofrecer a tus tenants.
+                Luego al provisionar un tenant nuevo (Innatum SaaS →
+                Crear tenant) podés tildar los servicios que ese tenant
+                puede ofrecer.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menú "Catálogo de servicios" dentro de Innatum SaaS -->
+    <menuitem id="menu_innatum_saas_servicios_catalogo"
+              name="Catálogo de servicios"
+              parent="menu_innatum_saas_root"
+              action="action_innatum_agenda_servicio_catalogo"
+              sequence="15"/>
+
+</odoo>

@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Tool 1: consultar_servicios -->
+        <record id="tool_consultar_servicios" model="innatum.ai.tool">
+            <field name="name">consultar_servicios</field>
+            <field name="display_name_field">Consultar servicios</field>
+            <field name="description">Lista los servicios con turnos disponibles del negocio. Devuelve {total, especialidades:[{name, code}]}. Úsala SIEMPRE que necesites mostrar servicios al cliente, ya sea al inicio o cuando quiera cambiar de servicio. NUNCA listes de memoria.</field>
+            <field name="tool_type">wa_agent</field>
+            <field name="sequence">10</field>
+            <field name="active" eval="True"/>
+            <field name="custom_input_schema">{
+  "type": "object",
+  "properties": {},
+  "required": []
+}</field>
+            <field name="python_method_path">flow.scheduling.tools:consultar_servicios</field>
+        </record>
+
+        <!-- Tool 2: consultar_profesionales -->
+        <record id="tool_consultar_profesionales" model="innatum.ai.tool">
+            <field name="name">consultar_profesionales</field>
+            <field name="display_name_field">Consultar profesionales</field>
+            <field name="description">Lista profesionales con turnos disponibles, opcionalmente filtrado por código de servicio. Devuelve {total_professionals, professionals:[{nombre, turnos_disponibles}], nota?}. Si solo hay un profesional, devuelve 'nota' indicándolo para que busques disponibilidad sin preguntar.</field>
+            <field name="tool_type">wa_agent</field>
+            <field name="sequence">20</field>
+            <field name="active" eval="True"/>
+            <field name="custom_input_schema">{
+  "type": "object",
+  "properties": {
+    "servicio_code": {
+      "type": "string",
+      "description": "Pasá el valor del campo `code` EXACTO devuelto por consultar_servicios. Ejemplo concreto: si consultar_servicios devolvió {name:'Odontología General', code:'1233'}, acá pasás '1233' literal, NO el name ni un slug del name. Opcional: si vacío, lista profesionales sin filtrar por servicio."
+    }
+  },
+  "required": []
+}</field>
+            <field name="python_method_path">flow.scheduling.tools:consultar_profesionales</field>
+        </record>
+
+        <!-- Tool 3: buscar_horarios_disponibles -->
+        <record id="tool_buscar_horarios" model="innatum.ai.tool">
+            <field name="name">buscar_horarios_disponibles</field>
+            <field name="display_name_field">Buscar horarios disponibles</field>
+            <field name="description">Busca turnos disponibles pre-generados para un servicio. IMPORTANTE: el parámetro servicio_code es el valor del campo `code` LITERAL devuelto por consultar_servicios (ej. "1233"), NUNCA el nombre legible del servicio. Devuelve hasta 30 slots con {turno_id, professional, fecha, hora, duracion_min, servicio_codigo}. El turno_id es el que vas a usar en reservar_turno. Si no se pasa fecha, busca los próximos 14 días.</field>
+            <field name="tool_type">wa_agent</field>
+            <field name="sequence">30</field>
+            <field name="active" eval="True"/>
+            <field name="custom_input_schema">{
+  "type": "object",
+  "properties": {
+    "servicio_code": {
+      "type": "string",
+      "description": "OBLIGATORIO. Pasá el valor del campo `code` EXACTO devuelto por consultar_servicios. Ejemplo concreto: si consultar_servicios devolvió {name:'Odontología General', code:'1233'}, acá pasás '1233' literal. NO pasés el name ('Odontología General') ni un slug ('odontologia_general')."
+    },
+    "profesional_nombre": {
+      "type": "string",
+      "description": "Nombre parcial del profesional para filtrar (opcional)."
+    },
+    "fecha": {
+      "type": "string",
+      "description": "Fecha específica YYYY-MM-DD (opcional). Si no se indica, busca los próximos 14 días."
+    }
+  },
+  "required": ["servicio_code"]
+}</field>
+            <field name="python_method_path">flow.scheduling.tools:buscar_horarios_disponibles</field>
+        </record>
+
+        <!-- Tool 3.5: consultar_regimen_servicio -->
+        <record id="tool_consultar_regimen_servicio" model="innatum.ai.tool">
+            <field name="name">consultar_regimen_servicio</field>
+            <field name="display_name_field">Consultar régimen del servicio</field>
+            <field name="description">Devuelve el régimen de atención de un servicio: qué días/horario atienden los profesionales, duración del turno, y las próximas 5 fechas con cupo. ÚSALA DESPUÉS de consultar_servicios y ANTES de buscar_horarios_disponibles, para guiar al cliente: "Atendemos Lun-Vie 9-17, ¿qué día prefieres?" en lugar de listar 30 turnos sueltos. Cuando el cliente elige día, recién ahí llamás buscar_horarios_disponibles con fecha=YYYY-MM-DD.</field>
+            <field name="tool_type">wa_agent</field>
+            <field name="sequence">25</field>
+            <field name="active" eval="True"/>
+            <field name="custom_input_schema">{
+  "type": "object",
+  "properties": {
+    "servicio_code": {
+      "type": "string",
+      "description": "OBLIGATORIO. El valor del campo `code` EXACTO devuelto por consultar_servicios (ej. '1233'). NO el name ni un slug."
+    }
+  },
+  "required": ["servicio_code"]
+}</field>
+            <field name="python_method_path">flow.scheduling.tools:consultar_regimen_servicio</field>
+        </record>
+
+        <!-- Tool 4: identificar_cliente -->
+        <record id="tool_identificar_cliente" model="innatum.ai.tool">
+            <field name="name">identificar_cliente</field>
+            <field name="display_name_field">Identificar cliente</field>
+            <field name="description">Busca al cliente por cédula (vat), email o teléfono. Si no existe lo crea con los datos disponibles (al menos uno: name/vat/email). Vincula el partner a la sesión actual y avanza el estado a identificando_cliente. Devuelve partner_id. USA esta tool antes de reservar_turno.</field>
+            <field name="tool_type">wa_agent</field>
+            <field name="sequence">40</field>
+            <field name="active" eval="True"/>
+            <field name="custom_input_schema">{
+  "type": "object",
+  "properties": {
+    "vat": {"type": "string", "description": "Cédula o RUC."},
+    "email": {"type": "string", "description": "Email del cliente."},
+    "phone": {"type": "string", "description": "Teléfono. Si no se pasa, usa el wa_from de la sesión."},
+    "name": {"type": "string", "description": "Nombre completo. Recomendado al crear."}
+  },
+  "required": []
+}</field>
+            <field name="python_method_path">flow.scheduling.tools:identificar_cliente</field>
+        </record>
+
+        <!-- Tool 5: reservar_turno -->
+        <record id="tool_reservar_turno" model="innatum.ai.tool">
+            <field name="name">reservar_turno</field>
+            <field name="display_name_field">Reservar turno</field>
+            <field name="description">Reserva un turno EXISTENTE (devuelto por buscar_horarios_disponibles) para el cliente ya identificado. El sistema marca el turno como reservado, vincula al partner, y avanza la sesión a confirmada (o pendiente_pago si la política del negocio lo exige). Si el turno ofrece varios servicios, indica servicio_code para elegir.</field>
+            <field name="tool_type">wa_agent</field>
+            <field name="sequence">50</field>
+            <field name="requires_confirmation" eval="True"/>
+            <field name="active" eval="True"/>
+            <field name="custom_input_schema">{
+  "type": "object",
+  "properties": {
+    "turno_id": {"type": "integer", "description": "ID del turno a reservar (obtenido de buscar_horarios_disponibles)."},
+    "servicio_code": {"type": "string", "description": "Código del servicio elegido. Solo necesario cuando el turno ofrece varios."},
+    "motivo": {"type": "string", "description": "Motivo o nota del cliente (opcional)."}
+  },
+  "required": ["turno_id"]
+}</field>
+            <field name="python_method_path">flow.scheduling.tools:reservar_turno</field>
+        </record>
+
+        <!-- Tool 6: solicitar_handoff -->
+        <record id="tool_solicitar_handoff" model="innatum.ai.tool">
+            <field name="name">solicitar_handoff</field>
+            <field name="display_name_field">Escalar a humano</field>
+            <field name="description">Pasa la conversación a un operador humano. Úsala si el cliente lo pide explícitamente, si hay una queja, si la situación es ambigua o si tu última respuesta no resolvió. La sesión queda en estado 'con_humano' y dejas de responder hasta que el operador la devuelva.</field>
+            <field name="tool_type">wa_agent</field>
+            <field name="sequence">90</field>
+            <field name="active" eval="False"/>
+            <field name="custom_input_schema">{
+  "type": "object",
+  "properties": {
+    "motivo": {
+      "type": "string",
+      "description": "Razón breve del handoff (ej: 'cliente pidió hablar con persona', 'queja sobre cobro', 'consulta médica específica')."
+    },
+    "urgencia": {
+      "type": "string",
+      "enum": ["baja", "normal", "alta"],
+      "description": "Default: normal."
+    }
+  },
+  "required": ["motivo"]
+}</field>
+            <field name="python_method_path">flow.scheduling.tools:solicitar_handoff</field>
+        </record>
+
+    </data>
+</odoo>

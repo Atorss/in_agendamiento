@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Categoría del módulo -->
+    <record id="module_category_innatum_agenda" model="ir.module.category">
+        <field name="name">Agenda</field>
+        <field name="sequence">55</field>
+    </record>
+
+    <!-- Grupo: Usuario (puede reservar y ver turnos)
+         Implica "Contact Creation" para que el profesional pueda dar de
+         alta clientes/terceros al facturar (caso: facturar a nombre de
+         alguien distinto del paciente atendido). -->
+    <record id="innatum_agenda_group_user" model="res.groups">
+        <field name="name">Usuario</field>
+        <field name="category_id" ref="module_category_innatum_agenda"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_partner_manager'))]"/>
+        <field name="comment">Acceso básico: ver turnos, reservar citas, crear contactos.</field>
+    </record>
+
+    <!-- Grupo: Operador (gestión de agenda y planificación) -->
+    <record id="innatum_agenda_group_operator" model="res.groups">
+        <field name="name">Operador</field>
+        <field name="category_id" ref="module_category_innatum_agenda"/>
+        <field name="implied_ids" eval="[(4, ref('innatum_agenda_group_user'))]"/>
+        <field name="comment">Gestión operativa: planificación de horarios, gestión de turnos para todos los profesionales.</field>
+    </record>
+
+    <!-- Grupo: Administrador (configuración completa)
+         NO implica hr.group_hr_user — el admin del tenant gestiona
+         colaboradores SOLO vía wizard "Nuevo Colaborador", no edita
+         directamente hr.employee. ACL read-only en ir.model.access.csv
+         para que pueda ver la lista de su personal. -->
+    <record id="innatum_agenda_group_admin" model="res.groups">
+        <field name="name">Administrador</field>
+        <field name="category_id" ref="module_category_innatum_agenda"/>
+        <field name="implied_ids" eval="[(4, ref('innatum_agenda_group_operator'))]"/>
+        <field name="comment">Configuración del sistema: gestión completa de modelos de agenda + alta de colaboradores vía wizard.</field>
+    </record>
+
+</odoo>

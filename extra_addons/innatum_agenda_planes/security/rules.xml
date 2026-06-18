@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Rules para planes/suscripciones/recargas.
+
+         Innatum ve TODO (rule global=False, sin filtros).
+         Admin del tenant ve solo SU suscripcion (read-only via ACL,
+         dominio acá filtra por company).
+         ============================================================ -->
+
+    <!-- Suscripcion: admin del tenant ve solo la de su company -->
+    <record id="rule_suscripcion_tenant_admin_own" model="ir.rule">
+        <field name="name">Suscripción: admin tenant ve solo la suya</field>
+        <field name="model_id" ref="model_in_agenda_suscripcion"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('innatum_agenda_core.innatum_agenda_group_admin'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Recarga IA: admin del tenant ve solo las de su suscripcion -->
+    <record id="rule_recarga_ia_tenant_admin_own" model="ir.rule">
+        <field name="name">Recarga IA: admin tenant ve solo las suyas</field>
+        <field name="model_id" ref="model_in_agenda_recarga_ia"/>
+        <field name="domain_force">[('suscripcion_id.company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('innatum_agenda_core.innatum_agenda_group_admin'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- ============================================================
+         Innatum admin: vista cross-company SIN switcher.
+
+         Para los modelos del SaaS (planes, suscripciones, recargas IA),
+         el admin Innatum debe ver TODOS los registros independiente de
+         la company activa en el switcher. Estos son datos de gestión
+         del SaaS Innatum, no operativos de un tenant — no tiene sentido
+         tener que cambiar de company para verlos.
+
+         Para modelos OPERATIVOS del tenant (turnos, configs, servicios)
+         mantenemos el filtro normal por company: si Innatum necesita
+         ver el agendamiento de un tenant para soporte, cambia el
+         switcher arriba.
+         ============================================================ -->
+
+    <record id="rule_plan_innatum_admin_all" model="ir.rule">
+        <field name="name">Plan: Innatum admin ve todo</field>
+        <field name="model_id" ref="model_in_agenda_plan"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_admin_innatum'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <record id="rule_suscripcion_innatum_admin_all" model="ir.rule">
+        <field name="name">Suscripción: Innatum admin ve todo</field>
+        <field name="model_id" ref="model_in_agenda_suscripcion"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_admin_innatum'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <record id="rule_recarga_ia_innatum_admin_all" model="ir.rule">
+        <field name="name">Recarga IA: Innatum admin ve todo</field>
+        <field name="model_id" ref="model_in_agenda_recarga_ia"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_admin_innatum'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+</odoo>

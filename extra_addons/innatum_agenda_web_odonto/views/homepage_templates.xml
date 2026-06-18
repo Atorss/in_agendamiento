@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================ -->
+    <!-- HOMEPAGE: Pagina principal vertical odontologico              -->
+    <!-- Datos del tenant via context: company, profesionales,         -->
+    <!-- servicios, prof_con_foto, prof_servicios                      -->
+    <!-- ============================================================ -->
+    <template id="homepage" name="Odonto - Pagina Principal">
+        <t t-call="website.layout">
+            <t t-set="no_header" t-value="False"/>
+            <t t-set="partner" t-value="company.partner_id"/>
+            <div id="wrap" class="odonto-home">
+
+                <!-- ===== TOP BAR ===== -->
+                <div class="odonto-topbar">
+                    <div class="container">
+                        <div class="odonto-topbar__inner">
+                            <div class="odonto-topbar__info">
+                                <t t-if="partner.contact_address_inline">
+                                    <span class="odonto-topbar__item">
+                                        <i class="fa fa-map-marker"/> <t t-esc="partner.contact_address_inline"/>
+                                    </span>
+                                </t>
+                                <t t-if="company.email">
+                                    <a t-att-href="'mailto:%s' % company.email" class="odonto-topbar__item">
+                                        <i class="fa fa-envelope"/> <t t-esc="company.email"/>
+                                    </a>
+                                </t>
+                                <t t-if="company.phone">
+                                    <span class="odonto-topbar__item">
+                                        <i class="fa fa-phone"/> <t t-esc="company.phone"/>
+                                    </span>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== HERO ===== -->
+                <section class="odonto-hero">
+                    <div class="odonto-hero__slideshow">
+                        <img src="/innatum_agenda_web_odonto/static/src/img/hero_smile.jpg"
+                             alt="Sonrisa perfecta" class="odonto-hero__slide odonto-hero__slide--active"/>
+                        <img src="/innatum_agenda_web_odonto/static/src/img/hero_2.jpg"
+                             alt="Tratamiento dental" class="odonto-hero__slide"/>
+                        <img src="/innatum_agenda_web_odonto/static/src/img/hero_3.jpg"
+                             alt="Profesionales dentales" class="odonto-hero__slide"/>
+                        <img src="/innatum_agenda_web_odonto/static/src/img/hero_4.jpg"
+                             alt="Estetica dental" class="odonto-hero__slide"/>
+                        <div class="odonto-hero__overlay"/>
+                    </div>
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-7 col-md-9">
+                                <h1 class="odonto-hero__title">
+                                    Tener una<br/>hermosa sonrisa,
+                                </h1>
+                                <p class="odonto-hero__accent">Ahora es posible.</p>
+                                <a href="/citas" class="odonto-btn odonto-btn--accent">
+                                    <i class="fa fa-calendar-plus-o me-2"/>SOLICITA TU TURNO
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== INFO CARDS ===== -->
+                <section class="odonto-infocards">
+                    <div class="container">
+                        <div class="row g-0">
+                            <div class="col-md-3">
+                                <div class="odonto-infocard odonto-infocard--primary">
+                                    <i class="fa fa-medkit odonto-infocard__icon"/>
+                                    <h4 class="odonto-infocard__title">Especialidades dentales</h4>
+                                    <a href="#especialidades" class="odonto-infocard__link">Ver más</a>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="odonto-infocard odonto-infocard--dark">
+                                    <i class="fa fa-magic odonto-infocard__icon"/>
+                                    <h4 class="odonto-infocard__title">Armonización facial</h4>
+                                    <a href="#facial" class="odonto-infocard__link">Ver más</a>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="odonto-infocard odonto-infocard--light">
+                                    <i class="fa fa-clock-o odonto-infocard__icon"/>
+                                    <h4 class="odonto-infocard__title">Atención</h4>
+                                    <a href="/citas" class="odonto-infocard__link">Ver disponibilidad</a>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="odonto-infocard odonto-infocard--accent">
+                                    <i class="fa fa-phone odonto-infocard__icon"/>
+                                    <h4 class="odonto-infocard__title">Contacto</h4>
+                                    <p class="odonto-infocard__text" t-if="company.phone">
+                                        <t t-esc="company.phone"/>
+                                    </p>
+                                    <p class="odonto-infocard__text" t-if="company.mobile">
+                                        <t t-esc="company.mobile"/>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== QUIENES SOMOS ===== -->
+                <section id="nosotros" class="odonto-section">
+                    <div class="container">
+                        <div class="row align-items-center">
+                            <div class="col-lg-6">
+                                <h2 class="odonto-section__title">
+                                    <t t-esc="company.name"/>
+                                </h2>
+                                <h5 class="odonto-section__subtitle">Mejoramos tu calidad de vida</h5>
+                                <p class="odonto-section__text">
+                                    Somos un equipo de profesionales dedicados a ganarnos su aprobación
+                                    con los mejores tratamientos, utilizando materiales de excelencia con
+                                    los avances más innovadores en el campo de la estética dental y facial.
+                                </p>
+                                <a href="/citas" class="odonto-btn odonto-btn--outline-primary">
+                                    Agenda tu cita
+                                </a>
+                            </div>
+                            <div class="col-lg-6 d-none d-lg-block">
+                                <div class="odonto-about__image">
+                                    <img src="/innatum_agenda_web_odonto/static/src/img/about_doctor.jpg"
+                                         alt="Nuestro equipo"
+                                         class="odonto-about__photo"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== CITA / QUOTE ===== -->
+                <section class="odonto-quote">
+                    <div class="container">
+                        <div class="odonto-quote__inner">
+                            <blockquote class="odonto-quote__text">
+                                "Priorizamos tu salud oral, diseñamos tu sonrisa y estética facial.
+                                Mejoramos tu calidad de vida."
+                            </blockquote>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== ESPECIALIDADES / SERVICIOS DEL TENANT ===== -->
+                <section id="especialidades" class="odonto-section odonto-section--gray">
+                    <div class="container">
+                        <div class="odonto-section__header">
+                            <span class="odonto-section__tag">Ama tu sonrisa</span>
+                            <h2 class="odonto-section__title">Especialidades dentales</h2>
+                        </div>
+                        <div class="row g-4">
+                            <t t-if="servicios" t-foreach="servicios" t-as="servicio">
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="odonto-card">
+                                        <div class="odonto-card__image">
+                                            <img src="/innatum_agenda_web_odonto/static/src/img/specialty_estetica.jpg"
+                                                 t-att-alt="servicio.name"/>
+                                        </div>
+                                        <div class="odonto-card__body">
+                                            <h4 class="odonto-card__title">
+                                                <t t-esc="servicio.name"/>
+                                            </h4>
+                                            <p class="odonto-card__text">
+                                                <t t-esc="servicio.description or ''"/>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
+                            <t t-if="not servicios">
+                                <div class="col-12">
+                                    <p class="text-center text-muted">
+                                        Próximamente publicaremos nuestros servicios.
+                                    </p>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== ARMONIZACION FACIAL (estilo vertical, contenido fijo) ===== -->
+                <section id="facial" class="odonto-section">
+                    <div class="container">
+                        <div class="odonto-section__header">
+                            <span class="odonto-section__tag">Realza tu imagen</span>
+                            <h2 class="odonto-section__title">Armonización Facial</h2>
+                        </div>
+                        <div class="row g-4">
+                            <div class="col-md-6 col-lg-3">
+                                <div class="odonto-facial-card">
+                                    <div class="odonto-facial-card__img">
+                                        <img src="/innatum_agenda_web_odonto/static/src/img/facial_1.jpg" alt="Bichectomía"/>
+                                    </div>
+                                    <div class="odonto-facial-card__body">
+                                        <h4>Bichectomía</h4>
+                                        <a href="/citas" class="odonto-facial-card__link">Agendar <i class="fa fa-arrow-right"/></a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-3">
+                                <div class="odonto-facial-card">
+                                    <div class="odonto-facial-card__img">
+                                        <img src="/innatum_agenda_web_odonto/static/src/img/facial_2.jpg" alt="Sonrisa"/>
+                                    </div>
+                                    <div class="odonto-facial-card__body">
+                                        <h4>Diseño de Sonrisa</h4>
+                                        <a href="/citas" class="odonto-facial-card__link">Agendar <i class="fa fa-arrow-right"/></a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-3">
+                                <div class="odonto-facial-card">
+                                    <div class="odonto-facial-card__img">
+                                        <img src="/innatum_agenda_web_odonto/static/src/img/facial_3.jpg?v=2" alt="Papada"/>
+                                    </div>
+                                    <div class="odonto-facial-card__body">
+                                        <h4>Papada</h4>
+                                        <a href="/citas" class="odonto-facial-card__link">Agendar <i class="fa fa-arrow-right"/></a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-3">
+                                <div class="odonto-facial-card">
+                                    <div class="odonto-facial-card__img">
+                                        <img src="/innatum_agenda_web_odonto/static/src/img/facial_4.jpg" alt="Labios"/>
+                                    </div>
+                                    <div class="odonto-facial-card__body">
+                                        <h4>Labios</h4>
+                                        <a href="/citas" class="odonto-facial-card__link">Agendar <i class="fa fa-arrow-right"/></a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== EQUIPO DEL TENANT ===== -->
+                <section class="odonto-section odonto-section--gray" t-if="profesionales">
+                    <div class="container">
+                        <div class="odonto-section__header">
+                            <h2 class="odonto-section__title">Conocé a nuestros especialistas</h2>
+                        </div>
+                        <div class="row g-4 justify-content-center">
+                            <t t-foreach="profesionales" t-as="prof">
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="odonto-doctor-card">
+                                        <div class="odonto-doctor-card__photo">
+                                            <t t-if="prof.id in prof_con_foto">
+                                                <img t-att-src="'/web/image/hr.employee.public/%d/image_512' % prof.id"
+                                                     t-att-alt="prof.name"/>
+                                            </t>
+                                            <t t-else="">
+                                                <img src="/innatum_agenda_web_odonto/static/src/img/doctor_1.jpg"
+                                                     t-att-alt="prof.name"/>
+                                            </t>
+                                        </div>
+                                        <div class="odonto-doctor-card__info">
+                                            <span class="odonto-doctor-card__dept">
+                                                <t t-esc="prof.job_title or 'Dental'"/>
+                                            </span>
+                                            <h4 class="odonto-doctor-card__name">
+                                                <t t-esc="prof.name"/>
+                                            </h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== FORMULARIO RESERVA ===== -->
+                <section id="contacto" class="odonto-section odonto-section--primary">
+                    <div class="container">
+                        <div class="odonto-section__header">
+                            <h2 class="odonto-section__title" style="color: #fff;">Solicitá una reserva</h2>
+                            <p class="odonto-section__desc" style="color: rgba(255,255,255,0.8);">
+                                Ingresá tus datos para agendar una consulta
+                            </p>
+                        </div>
+                        <div class="odonto-contact-form" id="odonto_contact_form">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <input type="text" class="form-control odonto-input" name="nombre" placeholder="Nombre" required="required"/>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="text" class="form-control odonto-input" name="apellido" placeholder="Apellido" required="required"/>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="email" class="form-control odonto-input" name="email" placeholder="Email" required="required"/>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="tel" class="form-control odonto-input" name="telefono" placeholder="Teléfono" required="required"/>
+                                </div>
+                                <div class="col-md-12">
+                                    <select class="form-select odonto-input" name="interes" required="required">
+                                        <option value="">Tengo interés en...</option>
+                                        <t t-foreach="servicios" t-as="servicio">
+                                            <option t-att-value="servicio.id">
+                                                <t t-esc="servicio.name"/>
+                                            </option>
+                                        </t>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <div id="odonto_form_message" class="odonto-form-message" style="display:none;"/>
+                                </div>
+                                <div class="col-12">
+                                    <button type="button" id="odonto_submit_btn" class="odonto-btn odonto-btn--white">
+                                        Enviar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </t>
+    </template>
+
+    <!-- ============================================================ -->
+    <!-- FOOTER del vertical odonto (data-driven)                      -->
+    <!-- inherit_id de website.layout, customize_show=True para que    -->
+    <!-- pueda activarse/desactivarse desde Theme Customize.           -->
+    <!-- ============================================================ -->
+    <template id="odonto_footer" name="Odonto Footer" inherit_id="website.layout" customize_show="True">
+        <xpath expr="//div[@id='footer']" position="replace">
+            <div id="footer">
+                <footer class="odonto-footer">
+                    <div class="container">
+                        <div class="row g-4">
+                            <div class="col-lg-4">
+                                <h3 class="odonto-footer__title">
+                                    <t t-esc="res_company.name"/>
+                                </h3>
+                                <div class="odonto-footer__info">
+                                    <p t-if="res_company.partner_id.contact_address_inline">
+                                        <t t-esc="res_company.partner_id.contact_address_inline"/>
+                                    </p>
+                                    <p t-if="res_company.phone">
+                                        Telf: <t t-esc="res_company.phone"/>
+                                    </p>
+                                    <p t-if="res_company.email">
+                                        <t t-esc="res_company.email"/>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <h3 class="odonto-footer__title">Atención</h3>
+                                <div class="odonto-footer__info">
+                                    <p>Reservá tu turno en línea</p>
+                                    <p><a href="/citas" style="color:inherit;">Agendar cita</a></p>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <h3 class="odonto-footer__title">Seguinos</h3>
+                                <div class="odonto-footer__social">
+                                    <a href="#" class="odonto-footer__social-link" aria-label="Facebook"><i class="fa fa-facebook"/></a>
+                                    <a href="#" class="odonto-footer__social-link" aria-label="Instagram"><i class="fa fa-instagram"/></a>
+                                    <a href="#" class="odonto-footer__social-link" aria-label="WhatsApp"><i class="fa fa-whatsapp"/></a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="odonto-footer__bottom">
+                            <p>&#169; <t t-esc="res_company.name"/>. Todos los derechos reservados.</p>
+                        </div>
+                    </div>
+                </footer>
+            </div>
+        </xpath>
+    </template>
+
+</odoo>

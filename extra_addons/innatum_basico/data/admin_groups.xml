@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- Al instalar innatum_basico, agregar al admin del sistema
+         (base.user_admin) como Administrador de Agenda. Innatum admin
+         debe poder gestionar TODO desde el día 1 de instalación.
+
+         noupdate=1: solo se asigna en instalación inicial. Si el admin
+         humano lo quita después, no se vuelve a agregar al hacer upgrade. -->
+    <record id="innatum_agenda_core.innatum_agenda_group_admin" model="res.groups">
+        <field name="users" eval="[(4, ref('base.user_admin'))]"/>
+    </record>
+
+</odoo>

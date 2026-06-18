@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_in_agenda_plan_list" model="ir.ui.view">
+        <field name="name">in_agenda.plan.list</field>
+        <field name="model">in_agenda.plan</field>
+        <field name="arch" type="xml">
+            <list string="Planes">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="precio_mensual_usd" widget="monetary"/>
+                <field name="max_turnos_mes"/>
+                <field name="max_profesionales"/>
+                <field name="ai_enabled" widget="boolean_toggle"/>
+                <field name="ai_margin_pct_default"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_in_agenda_plan_form" model="ir.ui.view">
+        <field name="name">in_agenda.plan.form</field>
+        <field name="model">in_agenda.plan</field>
+        <field name="arch" type="xml">
+            <form string="Plan">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Ej: Plan Básico"/></h1>
+                        <field name="code" placeholder="BASIC"/>
+                    </div>
+                    <group>
+                        <group string="Precio">
+                            <field name="precio_mensual_usd"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Límites operativos">
+                            <field name="max_turnos_mes"/>
+                            <field name="max_profesionales"/>
+                        </group>
+                    </group>
+                    <group string="IA">
+                        <field name="ai_enabled"/>
+                        <field name="ai_margin_pct_default"/>
+                    </group>
+                    <group string="Descripción">
+                        <field name="description" nolabel="1" colspan="2"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_in_agenda_plan" model="ir.actions.act_window">
+        <field name="name">Planes</field>
+        <field name="res_model">in_agenda.plan</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

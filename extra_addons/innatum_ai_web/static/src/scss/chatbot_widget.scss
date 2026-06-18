@@ -1,0 +1,894 @@
+// ============================================================
+// InMedic Chatbot Widget - Styles
+// ============================================================
+
+$cb-primary: #4f46e5;       // indigo-600
+$cb-primary-dark: #4338ca;  // indigo-700
+$cb-primary-light: #e0e7ff; // indigo-100
+$cb-user-bg: #4f46e5;
+$cb-user-text: #fff;
+$cb-bot-bg: #f8fafc;
+$cb-bot-border: #e2e8f0;
+$cb-bg: #fff;
+$cb-text: #1e293b;
+$cb-text-muted: #94a3b8;
+$cb-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+$cb-radius: 16px;
+
+// ============================================================
+// Root container
+// ============================================================
+
+.innatum-chatbot-root {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 99999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: $cb-text;
+}
+
+// ============================================================
+// Floating Button
+// ============================================================
+
+.inmed-cb-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, $cb-primary, $cb-primary-dark);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba($cb-primary, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+
+    &:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 28px rgba($cb-primary, 0.5);
+    }
+
+    &:active {
+        transform: scale(0.95);
+    }
+
+    &.inmed-cb-btn-active {
+        transform: rotate(90deg) scale(0.9);
+        opacity: 0.7;
+    }
+
+    // Pulse animation on load
+    &::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: $cb-primary;
+        opacity: 0;
+        animation: inmed-pulse 2s ease-out 1s 3;
+    }
+}
+
+@keyframes inmed-pulse {
+    0% { transform: scale(1); opacity: 0.4; }
+    100% { transform: scale(1.8); opacity: 0; }
+}
+
+// ============================================================
+// Chat Panel
+// ============================================================
+
+.inmed-cb-panel {
+    position: absolute;
+    bottom: 76px;
+    right: 0;
+    width: 400px;
+    max-height: 600px;
+    background: $cb-bg;
+    border-radius: $cb-radius;
+    box-shadow: $cb-shadow;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: bottom right;
+
+    &.inmed-cb-hidden {
+        opacity: 0;
+        transform: scale(0.8) translateY(20px);
+        pointer-events: none;
+    }
+}
+
+// ============================================================
+// Header
+// ============================================================
+
+.inmed-cb-header {
+    background: linear-gradient(135deg, $cb-primary, $cb-primary-dark);
+    color: #fff;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+.inmed-cb-header-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.inmed-cb-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.inmed-cb-title {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.inmed-cb-subtitle {
+    font-size: 12px;
+    opacity: 0.85;
+}
+
+.inmed-cb-close {
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+}
+
+// ============================================================
+// Messages Area
+// ============================================================
+
+.inmed-cb-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 300px;
+    max-height: 400px;
+    background: #f1f5f9;
+
+    // Scrollbar
+    &::-webkit-scrollbar {
+        width: 5px;
+    }
+    &::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+}
+
+// ============================================================
+// Message Bubbles
+// ============================================================
+
+.inmed-cb-msg {
+    display: flex;
+    flex-direction: column;
+    max-width: 85%;
+    animation: inmed-msg-in 0.25s ease-out;
+}
+
+@keyframes inmed-msg-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.inmed-cb-msg-user {
+    align-self: flex-end;
+
+    .inmed-cb-bubble {
+        background: $cb-user-bg;
+        color: $cb-user-text;
+        border-radius: 16px 16px 4px 16px;
+    }
+
+    .inmed-cb-time {
+        text-align: right;
+    }
+}
+
+.inmed-cb-msg-assistant {
+    align-self: flex-start;
+
+    .inmed-cb-bubble {
+        background: $cb-bot-bg;
+        color: $cb-text;
+        border: 1px solid $cb-bot-border;
+        border-radius: 16px 16px 16px 4px;
+    }
+}
+
+.inmed-cb-bubble {
+    padding: 10px 14px;
+    word-wrap: break-word;
+    font-size: 13.5px;
+    line-height: 1.55;
+
+    strong {
+        font-weight: 600;
+    }
+}
+
+.inmed-cb-time {
+    font-size: 11px;
+    color: $cb-text-muted;
+    margin-top: 2px;
+    padding: 0 4px;
+}
+
+// ============================================================
+// Typing Indicator
+// ============================================================
+
+.inmed-cb-typing {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 12px 18px !important;
+}
+
+.inmed-cb-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: $cb-text-muted;
+    animation: inmed-bounce 1.4s infinite ease-in-out;
+
+    &:nth-child(2) { animation-delay: 0.2s; }
+    &:nth-child(3) { animation-delay: 0.4s; }
+}
+
+@keyframes inmed-bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+// ============================================================
+// Input Area
+// ============================================================
+
+.inmed-cb-input-area {
+    padding: 12px 14px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    background: $cb-bg;
+    flex-shrink: 0;
+}
+
+.inmed-cb-input {
+    flex: 1;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    max-height: 100px;
+    line-height: 1.4;
+    transition: border-color 0.2s;
+
+    &:focus {
+        border-color: $cb-primary;
+    }
+
+    &::placeholder {
+        color: $cb-text-muted;
+    }
+}
+
+.inmed-cb-mic {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: #f1f5f9;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    position: relative;
+
+    &:hover:not(:disabled) {
+        background: #e2e8f0;
+        color: $cb-primary;
+        transform: scale(1.05);
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
+
+    &.inmed-cb-mic-recording {
+        background: #fef2f2;
+        color: #ef4444;
+        animation: inmed-mic-pulse 1.5s ease-in-out infinite;
+
+        &:hover {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        // Anillo animado de grabación
+        &::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid #ef4444;
+            opacity: 0;
+            animation: inmed-rec-ring 1.5s ease-out infinite;
+        }
+    }
+}
+
+@keyframes inmed-mic-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+}
+
+@keyframes inmed-rec-ring {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(1.6); opacity: 0; }
+}
+
+.inmed-cb-send {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: $cb-primary;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+
+    &:hover:not(:disabled) {
+        background: $cb-primary-dark;
+        transform: scale(1.05);
+    }
+
+    &:disabled {
+        background: #cbd5e1;
+        cursor: default;
+    }
+}
+
+// ============================================================
+// Option Buttons (especialidades, professionales)
+// ============================================================
+
+.inmed-cb-options-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 0;
+    animation: inmed-msg-in 0.3s ease-out;
+}
+
+.inmed-cb-option-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1.5px solid $cb-primary;
+    background: $cb-bg;
+    color: $cb-primary;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    line-height: 1.3;
+
+    &:hover:not(:disabled) {
+        background: $cb-primary;
+        color: $cb-bg;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba($cb-primary, 0.3);
+    }
+
+    &.inmed-cb-option-selected {
+        background: $cb-primary;
+        color: $cb-bg;
+        border-color: $cb-primary;
+    }
+
+    &.inmed-cb-option-disabled {
+        opacity: 0.4;
+        pointer-events: none;
+    }
+
+    svg {
+        flex-shrink: 0;
+    }
+}
+
+.inmed-cb-option-professional {
+    padding: 10px 16px;
+    border-radius: 12px;
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+}
+
+// ============================================================
+// Slot Cards (disponibilidad)
+// ============================================================
+
+.inmed-cb-slots-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 0;
+    animation: inmed-msg-in 0.3s ease-out;
+}
+
+.inmed-cb-slot-card {
+    background: $cb-bg;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.inmed-cb-slot-header {
+    background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+    padding: 10px 14px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.inmed-cb-slot-professional {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 13.5px;
+    color: $cb-primary-dark;
+
+    svg { flex-shrink: 0; }
+}
+
+.inmed-cb-slot-specialty {
+    font-size: 11.5px;
+    color: $cb-text-muted;
+    margin-top: 1px;
+    padding-left: 22px;
+}
+
+.inmed-cb-slot-date-group {
+    padding: 10px 14px;
+
+    & + & {
+        border-top: 1px dashed #e2e8f0;
+    }
+}
+
+.inmed-cb-slot-date-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #475569;
+    margin-bottom: 8px;
+    text-transform: capitalize;
+
+    svg { flex-shrink: 0; stroke: #64748b; }
+}
+
+.inmed-cb-slot-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.inmed-cb-slot-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: $cb-bg;
+    border: 1.5px solid $cb-primary;
+    border-radius: 10px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 62px;
+
+    &:hover {
+        background: $cb-primary;
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba($cb-primary, 0.3);
+
+        .inmed-cb-pill-time { color: #fff; }
+        .inmed-cb-pill-dur { color: rgba(255, 255, 255, 0.8); }
+    }
+
+    &:active {
+        transform: scale(0.96);
+    }
+
+    &.inmed-cb-pill-disabled {
+        opacity: 0.4;
+        cursor: default;
+        pointer-events: none;
+    }
+
+    &.inmed-cb-pill-selected {
+        background: $cb-primary;
+        color: #fff;
+        border-color: $cb-primary-dark;
+    }
+}
+
+.inmed-cb-pill-time {
+    font-size: 14px;
+    font-weight: 600;
+    color: $cb-primary-dark;
+    line-height: 1.2;
+}
+
+.inmed-cb-pill-dur {
+    font-size: 10px;
+    color: $cb-text-muted;
+    line-height: 1.2;
+}
+
+// ============================================================
+// Confirmation Dialog (Sí/No antes de reservar)
+// ============================================================
+
+.inmed-cb-confirm-card {
+    background: #fffbeb;
+    border: 1.5px solid #f59e0b;
+    border-radius: 14px;
+    padding: 16px;
+    margin: 4px 0;
+    animation: inmed-msg-in 0.3s ease-out;
+}
+
+.inmed-cb-confirm-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #92400e;
+    margin-bottom: 10px;
+}
+
+.inmed-cb-confirm-details {
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.inmed-cb-confirm-row {
+    font-size: 13px;
+    color: #1e293b;
+    padding: 3px 0;
+
+    strong { color: #475569; }
+}
+
+.inmed-cb-confirm-question {
+    font-size: 14px;
+    font-weight: 600;
+    color: #92400e;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.inmed-cb-confirm-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.inmed-cb-confirm-btn {
+    padding: 8px 24px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &.inmed-cb-confirm-yes {
+        background: $cb-primary;
+        color: #fff;
+
+        &:hover { background: $cb-primary-dark; transform: scale(1.05); }
+    }
+
+    &.inmed-cb-confirm-no {
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+
+        &:hover { background: #e2e8f0; }
+    }
+}
+
+// ============================================================
+// Booking Confirmation Card
+// ============================================================
+
+.inmed-cb-booking-card {
+    background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+    border: 1.5px solid #86efac;
+    border-radius: 14px;
+    padding: 20px 16px;
+    text-align: center;
+    animation: inmed-msg-in 0.4s ease-out;
+    margin: 4px 0;
+}
+
+.inmed-cb-booking-icon {
+    color: #16a34a;
+    margin-bottom: 6px;
+
+    svg { display: inline-block; }
+}
+
+.inmed-cb-booking-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #15803d;
+    margin-bottom: 2px;
+}
+
+.inmed-cb-booking-ref {
+    font-size: 12px;
+    color: #16a34a;
+    font-weight: 500;
+    margin-bottom: 14px;
+    letter-spacing: 0.5px;
+}
+
+.inmed-cb-booking-details {
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    padding: 10px 14px;
+    text-align: left;
+}
+
+.inmed-cb-booking-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    font-size: 12.5px;
+
+    & + & {
+        border-top: 1px solid #d1fae5;
+    }
+}
+
+.inmed-cb-booking-label {
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.inmed-cb-booking-value {
+    color: $cb-text;
+    font-weight: 600;
+    text-align: right;
+}
+
+.inmed-cb-booking-status {
+    margin-top: 12px;
+    font-size: 11.5px;
+    color: #ca8a04;
+    font-weight: 600;
+    background: #fef9c3;
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 10px;
+}
+
+// ============================================================
+// Session End / Restart
+// ============================================================
+
+.inmed-cb-session-end {
+    text-align: center;
+    padding: 8px 0;
+}
+
+.inmed-cb-restart-btn {
+    background: $cb-primary-light;
+    color: $cb-primary-dark;
+    border: 1px solid $cb-primary;
+    border-radius: 20px;
+    padding: 8px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+        background: $cb-primary;
+        color: #fff;
+    }
+}
+
+// ============================================================
+// Responsive: Mobile
+// ============================================================
+
+@media (max-width: 480px) {
+    .innatum-chatbot-root {
+        bottom: 16px;
+        right: 16px;
+    }
+
+    .inmed-cb-panel {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        max-height: 100%;
+        border-radius: 0;
+    }
+
+    .inmed-cb-messages {
+        max-height: none;
+        min-height: 0;
+    }
+
+    .inmed-cb-btn.inmed-cb-btn-active {
+        display: none;
+    }
+}
+
+// ============================================================
+// Register Form (inline)
+// ============================================================
+
+.inmed-cb-register-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 8px 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.inmed-cb-reg-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: $cb-primary;
+    margin-bottom: 8px;
+}
+
+.inmed-cb-reg-vat {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 12px;
+    padding: 6px 10px;
+    background: #f8fafc;
+    border-radius: 6px;
+}
+
+.inmed-cb-reg-field {
+    margin-bottom: 10px;
+
+    label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 3px;
+    }
+}
+
+.inmed-cb-reg-input {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #1e293b;
+    background: #fff;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+
+    &:focus {
+        outline: none;
+        border-color: $cb-primary;
+        box-shadow: 0 0 0 2px rgba($cb-primary, 0.12);
+    }
+
+    &::placeholder {
+        color: #94a3b8;
+    }
+}
+
+.inmed-cb-reg-error {
+    font-size: 12px;
+    color: #ef4444;
+    margin-bottom: 8px;
+    padding: 4px 0;
+}
+
+// ============================================================
+// Register Success Card
+// ============================================================
+
+.inmed-cb-register-success {
+    background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+    border: 1px solid #a7f3d0;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 8px 4px;
+    text-align: center;
+}
+
+.inmed-cb-regsuc-icon {
+    color: #059669;
+    margin-bottom: 6px;
+}
+
+.inmed-cb-regsuc-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: #065f46;
+    margin-bottom: 4px;
+}
+
+.inmed-cb-regsuc-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: #047857;
+    margin-bottom: 2px;
+}
+
+.inmed-cb-regsuc-text {
+    font-size: 11px;
+    color: #6ee7b7;
+}

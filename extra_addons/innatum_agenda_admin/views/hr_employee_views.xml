@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Vista FORM simplificada para crear/editar Personal desde
+         el menú "Administración → Personal".
+         Solo campos relevantes para Agenda (no carga la complejidad
+         del módulo HR estándar).
+         ============================================================ -->
+    <record id="innatum_agenda_admin_personal_form" model="ir.ui.view">
+        <field name="name">hr.employee.personal.form.innatum.agenda.admin</field>
+        <field name="model">hr.employee</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <form string="Personal">
+                <header>
+                    <button name="action_innatum_set_password" type="object"
+                            string="Establecer Contraseña"
+                            invisible="not user_id"
+                            class="btn-secondary"/>
+                </header>
+                <sheet>
+                    <field name="image_1920" widget="image" class="oe_avatar"
+                           options="{'preview_image': 'image_128'}"/>
+                    <field name="user_id" invisible="1"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nombres y apellidos" required="1"/>
+                        </h1>
+                        <h3>
+                            <field name="job_title" placeholder="Cargo / Puesto"/>
+                        </h3>
+                    </div>
+                    <group>
+                        <group string="Contacto">
+                            <field name="work_email" widget="email" required="1"
+                                   placeholder="correo@ejemplo.com"/>
+                            <field name="mobile_phone" widget="phone"/>
+                            <field name="work_phone" widget="phone"/>
+                            <field name="company_id" groups="base.group_multi_company"
+                                   options="{'no_create': True}"/>
+                        </group>
+                        <group string="Acceso al sistema">
+                            <field name="innatum_agenda_rol" widget="radio"/>
+                            <field name="puede_planificar"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info" role="status" style="margin-top:8px"
+                         invisible="user_id">
+                        <i class="fa fa-info-circle"/>
+                        Al guardar, se creará automáticamente un usuario del sistema
+                        usando el <strong>correo de trabajo</strong> como login.
+                        El empleado recibirá un email para definir su contraseña.
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ============================================================
+         Vista LIST simplificada para "Administración → Personal"
+         ============================================================ -->
+    <record id="innatum_agenda_admin_personal_list" model="ir.ui.view">
+        <field name="name">hr.employee.personal.list.innatum.agenda.admin</field>
+        <field name="model">hr.employee</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <list string="Personal">
+                <field name="name"/>
+                <field name="job_title"/>
+                <field name="work_email"/>
+                <field name="mobile_phone"/>
+                <field name="innatum_agenda_rol" widget="badge"
+                       decoration-success="innatum_agenda_rol == 'admin'"
+                       decoration-info="innatum_agenda_rol == 'operador'"
+                       decoration-muted="innatum_agenda_rol == 'usuario'"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Action que abre Personal con las vistas simplificadas.
+         El contexto innatum_auto_create_user dispara la creación
+         automática del res.users vinculado al guardar el empleado. -->
+    <record id="innatum_agenda_admin_personal_action" model="ir.actions.act_window">
+        <field name="name">Personal</field>
+        <field name="res_model">hr.employee</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'innatum_auto_create_user': True}</field>
+        <field name="view_ids" eval="[
+            (5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('innatum_agenda_admin_personal_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('innatum_agenda_admin_personal_form')}),
+        ]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crea un nuevo miembro del personal
+            </p>
+            <p>
+                Aquí puedes registrar a las personas que brindan servicios.
+                Después podrás asignarles servicios y planificar sus horarios.
+            </p>
+        </field>
+    </record>
+
+</odoo>

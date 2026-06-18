@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Action "Clientes" — vista filtrada de res.partner
+
+         Muestra solo partners que han reservado al menos un turno
+         (servicios_consumidos_ids no vacío). Filtra automáticamente
+         el ruido de partners "estructurales" (companies, admins,
+         empleados, public users, etc.) sin tocar el form view —
+         click en cliente abre el form estándar de res.partner para
+         no romper la herencia que otros módulos (sale, account,
+         in_medic_compartido, etc.) puedan agregar a futuro.
+
+         El aislamiento entre tenants ya está garantizado por la
+         global rule de res.partner modificada por este mismo módulo.
+         ============================================================ -->
+
+    <record id="action_innatum_clientes" model="ir.actions.act_window">
+        <field name="name">Clientes</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="domain">[('servicios_consumidos_ids', '!=', False)]</field>
+        <field name="context">{
+            'default_company_id': allowed_company_ids and allowed_company_ids[0],
+            'search_default_customer': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Aún no hay clientes registrados
+            </p>
+            <p>
+                Los clientes aparecen automáticamente acá cuando reservan
+                un turno desde el sitio web público o desde el formulario
+                de turnos.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menú "Clientes" — primer submenú de Agendamiento -->
+    <menuitem id="menu_innatum_clientes"
+              name="Clientes"
+              parent="innatum_agenda_menu_root"
+              action="action_innatum_clientes"
+              sequence="5"
+              groups="innatum_agenda_group_user"/>
+
+    <!-- ============================================================
+         Ocultar el menú estándar "Contactos" de Odoo para los users
+         del tenant. Solo lo verá el admin del sistema (Innatum).
+
+         Si un admin de tenant necesita gestionar partners que NO son
+         clientes (proveedores, etc.) podrá hacerlo desde el menú
+         "Clientes" o desde el form de turno con quick-create.
+         ============================================================ -->
+
+    <record id="contacts.menu_contacts" model="ir.ui.menu">
+        <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
+    </record>
+
+</odoo>

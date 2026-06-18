@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Categoría del módulo (no se muestra en User > Access Rights de tenants) -->
+    <record id="module_category_innatum_saas" model="ir.module.category">
+        <field name="name">Innatum SaaS</field>
+        <field name="description">Administración interna del SaaS Innatum
+            (planes, suscripciones, provisioning de tenants).</field>
+        <field name="sequence">200</field>
+    </record>
+
+    <!-- Grupo único: solo personal de Innatum. Los admins de tenant NO lo tienen. -->
+    <record id="group_admin_innatum" model="res.groups">
+        <field name="name">Administrador Innatum</field>
+        <field name="category_id" ref="module_category_innatum_saas"/>
+        <field name="comment">Gestión de planes, suscripciones, recargas IA y
+            provisioning de tenants. Restringido a Innatum staff.</field>
+        <!-- Asignar al admin del sistema por default -->
+        <field name="users" eval="[(4, ref('base.user_admin'))]"/>
+    </record>
+
+</odoo>

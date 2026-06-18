@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="muk_web_appsbar.MenuTreeItem">
+        <li t-att-class="getGroupClass()">
+            <!-- Group Header (expandable) -->
+            <div class="nav-link open_sidebar-link"
+                 t-att-title="props.group.name"
+                 t-on-click="toggleExpand">
+                <img t-if="props.group.icon"
+                     class="sidebar_img"
+                     t-attf-src="data:image/png;base64,{{props.group.icon}}"
+                     alt=""/>
+                <span class="sidebar_app_name" t-esc="props.group.name"/>
+                <i t-if="hasChildren" t-att-class="getCaretClass()"/>
+                <i class="fa fa-caret-left indicator_selected"/>
+            </div>
+        </li>
+
+        <!-- Submenu Container -->
+        <ul t-if="hasChildren and state.isExpanded" t-att-class="getSubmenuClass()">
+
+            <!-- Render Child Groups (recursive) -->
+            <t t-if="hasChildGroups">
+                <t t-foreach="props.group.children" t-as="childGroup" t-key="childGroup.id">
+                    <MenuTreeItem
+                        group="childGroup"
+                        level="props.level + 1"
+                        onSelectApp="props.onSelectApp"
+                        onExpandSidebar="props.onExpandSidebar"
+                        activeAppId="props.activeAppId"
+                        sidebarCollapsed="props.sidebarCollapsed"/>
+                </t>
+            </t>
+
+            <!-- Render Apps (leaf nodes) -->
+            <t t-if="hasApps">
+                <t t-foreach="props.group.apps" t-as="app" t-key="app.id">
+                    <li>
+                        <a role="menuitem"
+                           t-att-title="app.name"
+                           t-att-href="`#menu_id=${app.id}`"
+                           class="nav-link"
+                           t-att-class="{ 'active': isAppActive(app) }"
+                           t-on-click.prevent="() => this.onAppClick(app)">
+                            <img t-if="app.webIconData"
+                                 class="sidebar_img mk_apps_sidebar_icon"
+                                 t-att-src="app.webIconData"
+                                 alt=""/>
+                            <img t-else=""
+                                 class="sidebar_img mk_apps_sidebar_icon"
+                                 src="/base/static/description/icon.png"
+                                 alt=""/>
+                            <span class="sidebar_app_name mk_apps_sidebar_name" t-esc="app.label"/>
+                            <i class="fa fa-caret-left indicator_selected"/>
+                        </a>
+                    </li>
+                </t>
+            </t>
+
+        </ul>
+    </t>
+
+</templates>

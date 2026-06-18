@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- LIST VIEW -->
+    <record id="innatum_agenda_config_view_list" model="ir.ui.view">
+        <field name="name">innatum.agenda.config.list</field>
+        <field name="model">innatum.agenda.config</field>
+        <field name="arch" type="xml">
+            <list duplicate="0" string="Planificación de Horarios" decoration-muted="state == 'draft'" decoration-success="state == 'approved'">
+                <field name="servicio_ids" widget="many2many_tags"/>
+                <field name="professional_id" widget="many2one_avatar_employee"/>
+                <field name="fecha_desde"/>
+                <field name="fecha_hasta"/>
+                <field name="duracion_turno"/>
+                <field name="turno_count"/>
+                <field name="turno_available_count"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'approved'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- FORM VIEW -->
+    <record id="innatum_agenda_config_view_form" model="ir.ui.view">
+        <field name="name">innatum.agenda.config.form</field>
+        <field name="model">innatum.agenda.config</field>
+        <field name="arch" type="xml">
+            <form duplicate="0" string="Planificación de Horario">
+                <header>
+                    <button name="action_approve" string="Aprobar y Generar Turnos" type="object" class="btn-primary" icon="fa-check" invisible="state != 'draft'"/>
+                    <button name="action_draft" string="Reprogramar Agenda" type="object" icon="fa-refresh" invisible="state != 'approved'" confirm="Se eliminarán todos los turnos disponibles. Los turnos reservados y confirmados se mantienen. ¿Desea continuar?"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,approved"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-info" role="alert" invisible="state != 'approved'">
+                        <strong><i class="fa fa-info-circle me-1"/> Agenda Activa</strong> —
+                        Al presionar <b>Reprogramar Agenda</b> se eliminarán únicamente los turnos
+                        <b>disponibles</b>. Los turnos que ya tienen cliente asignado
+                        (reservados, confirmados o en progreso) <b>no se verán afectados</b>.
+                    </div>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_turnos" type="object" class="oe_stat_button" icon="fa-calendar" invisible="state == 'draft'">
+                            <field name="turno_count" string="Turnos" widget="statinfo"/>
+                        </button>
+                        <button name="action_view_turnos_available" type="object" class="oe_stat_button" icon="fa-calendar-check-o" invisible="state == 'draft'">
+                            <field name="turno_available_count" string="Disponibles" widget="statinfo"/>
+                        </button>
+                    </div>
+                    <group>
+                        <group string="Servicio y Profesional">
+                            <field name="is_usuario_only" invisible="1"/>
+                            <field name="servicio_ids" widget="many2many_tags"
+                                   readonly="state == 'approved'"
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="professional_id" widget="many2one_avatar_employee"
+                                   readonly="is_usuario_only or state == 'approved'"
+                                   force_save="1"
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                        </group>
+                        <group string="Período">
+                            <field name="fecha_desde" readonly="state == 'approved'"/>
+                            <field name="fecha_hasta" readonly="state == 'approved'"/>
+                            <field name="duracion_turno" readonly="state == 'approved'"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Horarios de Atención" name="horarios">
+                            <field name="line_ids" readonly="state == 'approved'">
+                                <list editable="bottom">
+                                    <field name="lunes"/>
+                                    <field name="martes"/>
+                                    <field name="miercoles"/>
+                                    <field name="jueves"/>
+                                    <field name="viernes"/>
+                                    <field name="sabado"/>
+                                    <field name="domingo"/>
+                                    <field name="hora_inicio" widget="float_time"/>
+                                    <field name="hora_fin" widget="float_time"/>
+                                    <field name="turnos_por_dia"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- SEARCH VIEW -->
+    <record id="innatum_agenda_config_view_search" model="ir.ui.view">
+        <field name="name">innatum.agenda.config.search</field>
+        <field name="model">innatum.agenda.config</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Planificación">
+                <field name="professional_id"/>
+                <field name="servicio_ids" widget="many2many_tags" options="{'no_create': True, 'no_open': True, 'no_create_edit': True}"/>
+                <filter name="draft" string="Borrador" domain="[('state', '=', 'draft')]"/>
+                <filter name="approved" string="Aprobado" domain="[('state', '=', 'approved')]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter name="group_servicio" string="Servicio" context="{'group_by': 'servicio_ids'}"/>
+                    <filter name="group_professional" string="Profesional" context="{'group_by': 'professional_id'}"/>
+                    <filter name="group_state" string="Estado" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ACTION -->
+    <record id="innatum_agenda_config_action" model="ir.actions.act_window">
+        <field name="name">Planificación de Horarios</field>
+        <field name="res_model">innatum.agenda.config</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="innatum_agenda_config_view_search"/>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Cree la primera planificación de horario
+            </p>
+        </field>
+    </record>
+
+</odoo>

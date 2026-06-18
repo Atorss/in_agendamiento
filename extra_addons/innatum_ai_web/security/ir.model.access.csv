@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_chatbot_session_public,innatum.ai.chatbot.session.public,model_innatum_ai_chatbot_session,,1,1,1,0
+access_chatbot_session_admin,innatum.ai.chatbot.session.admin,model_innatum_ai_chatbot_session,innatum_ai.group_ai_admin,1,1,1,1

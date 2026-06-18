@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        El Administrador de Agenda NO hereda Oficial RRHH para evitar mostrar
+        el menú completo de Recursos Humanos. En su lugar, recibe ACL directa
+        sobre hr.employee (ver ir.model.access.csv) para crear/editar empleados
+        únicamente desde el menú "Administración → Personal".
+
+        Si en una instalación previa se otorgó hr.group_hr_user al Admin,
+        este record lo remueve.
+    -->
+    <record id="innatum_agenda_core.innatum_agenda_group_admin" model="res.groups">
+        <field name="implied_ids" eval="[
+            (3, ref('hr.group_hr_user')),
+        ]"/>
+    </record>
+
+</odoo>

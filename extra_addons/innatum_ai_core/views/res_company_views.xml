@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Diseño de visibilidad sobre res.company:
+
+        El sistema tiene 2 form views para res.company que coexisten:
+
+          A) base.view_company_form (estándar Odoo)
+             La ven los usuarios que NO tienen el grupo "Admin de Agenda"
+             (ej. usuarios genéricos del sistema Odoo).
+
+          B) innatum_agenda_admin.innatum_agenda_admin_empresa_form
+             Vista PRIMARY con priority=1 y groups_id=group_admin_innatum.
+             La ven los usuarios CON el grupo "Admin de Agenda"
+             (cliente final + operador Innatum si tiene ambos grupos).
+
+        Para que tanto el cliente como el operador vean la información
+        correcta sin importar por dónde entren, heredamos AMBAS vistas:
+
+          - business_profile_ids: en AMBAS (cliente y operador editan su perfil)
+          - Meta / Supabase: en AMBAS pero con groups="base.group_system"
+            para que SOLO el operador Innatum (que tiene Settings system) los vea.
+            El cliente final NO tiene base.group_system y los campos quedan ocultos.
+    -->
+
+
+    <!--
+        Vista A: extension de base.view_company_form (Odoo estándar).
+        Agrega:
+          - Bloque "WhatsApp / Agente IA - Configuración técnica" (solo system admin)
+          - Bloque "Perfil del negocio" con business_profile_ids embebido (todos)
+    -->
+    <record id="view_company_form_whatsapp_inherit" model="ir.ui.view">
+        <field name="name">res.company.form.whatsapp.inherit</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+
+                <!-- Bloque del agente IA: visible para todos los que abran la vista -->
+                <separator string="Perfil del agente IA"/>
+                <field name="business_profile_ids"
+                       context="{'default_company_id': id, 'form_view_ref': 'innatum_ai_core.view_business_profile_form_embedded', 'create': True}">
+                    <list create="true" delete="false">
+                        <field name="vertical_template_id"/>
+                        <field name="bot_name"/>
+                        <field name="payment_policy"/>
+                        <field name="agent_enabled" widget="boolean_toggle"/>
+                    </list>
+                </field>
+
+                <!-- Bloque Meta/Supabase: SOLO Innatum staff (base.group_system).
+                     El cliente final no tiene base.group_system, así que NO ve esto. -->
+                <group string="WhatsApp / Agente IA — Configuración técnica (Innatum staff)"
+                       name="group_whatsapp_ai"
+                       col="4"
+                       groups="base.group_system">
+                    <group string="Meta Cloud API" colspan="2">
+                        <field name="wa_phone_number_id"/>
+                        <field name="wa_business_account_id"/>
+                    </group>
+                    <group string="Infraestructura del agente" colspan="2">
+                        <field name="supabase_tenant_id"/>
+                        <field name="wa_agent_user_id"/>
+                    </group>
+                </group>
+
+            </xpath>
+        </field>
+    </record>
+
+
+    <!--
+        Vista B: extension de la vista simplificada de tenant admin
+        (Administración → Mi Negocio → Empresa).
+
+        Agrega lo mismo que la Vista A para que sea consistente: business_profile
+        + Meta (oculto a no-system).
+
+        El cliente final ve solo el perfil. El operador Innatum (que tiene
+        base.group_system) ve también el bloque técnico aquí.
+    -->
+    <record id="view_agenda_admin_empresa_form_business_profile_inherit" model="ir.ui.view">
+        <field name="name">res.company.empresa.form.business.profile</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id"
+               ref="innatum_agenda_admin.innatum_agenda_admin_empresa_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+
+                <separator string="Configuración del agente IA"/>
+                <div class="alert alert-info" role="status">
+                    <i class="fa fa-info-circle"/>
+                    Acá configurás cómo se comporta el asistente virtual que
+                    atiende tus clientes por WhatsApp.
+                </div>
+                <field name="business_profile_ids"
+                       context="{'default_company_id': id, 'form_view_ref': 'innatum_ai_core.view_business_profile_form_embedded', 'create': True}">
+                    <list create="true" delete="false">
+                        <field name="vertical_template_id"/>
+                        <field name="bot_name"/>
+                        <field name="payment_policy"/>
+                        <field name="agent_enabled" widget="boolean_toggle"/>
+                    </list>
+                </field>
+
+                <!-- Bloque Meta/Supabase: SOLO para Innatum staff.
+                     El cliente final entra por Administración → Mi Negocio y
+                     no tiene base.group_system → no ve esto. -->
+                <group string="WhatsApp / Agente IA — Configuración técnica (Innatum staff)"
+                       name="group_whatsapp_ai_admin"
+                       col="4"
+                       groups="base.group_system">
+                    <group string="Meta Cloud API" colspan="2">
+                        <field name="wa_phone_number_id"/>
+                        <field name="wa_business_account_id"/>
+                    </group>
+                    <group string="Infraestructura del agente" colspan="2">
+                        <field name="supabase_tenant_id"/>
+                        <field name="wa_agent_user_id"/>
+                    </group>
+                </group>
+
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,300 @@
+// =============================================================================
+// FORM VIEW - Dark Glassmorphism 2026
+// =============================================================================
+
+.o_form_view {
+    // --- Inputs con glass effect ---
+    &:not(.o_field_highlight) .o_field_widget:not(.o_field_invalid):not(.o_field_highlight) .o_input:not(:hover):not(:focus) {
+        --o-input-border-color: #{$gray-300};
+    }
+    &:not(.o_field_highlight) .o_required_modifier.o_field_widget:not(.o_field_invalid):not(.o_field_highlight) .o_input:not(:hover):not(:focus) {
+        --o-input-border-color: #{$gray-400};
+        border-left: 3px solid $o-brand-primary;
+    }
+
+    .o_input {
+        border-radius: 8px;
+        padding: 6px 12px;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        background-color: rgba($gray-100, 0.4);
+        border: 1px solid rgba($gray-300, 0.6);
+
+        &:hover:not(:focus):not([readonly]) {
+            --o-input-border-color: #{$gray-400};
+            background-color: rgba($white, 0.8);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        &:focus {
+            background-color: $white;
+            border-color: $o-brand-primary;
+            box-shadow: 0 0 0 3px rgba($o-brand-primary, 0.12), 0 2px 12px rgba($o-brand-primary, 0.08);
+        }
+    }
+
+    // --- Grupos: separador lateral con acento ---
+    .o_inner_group {
+        padding: 8px 12px;
+        margin-bottom: 4px;
+        border-left: 2px solid $gray-200;
+    }
+
+    // --- Notebook tabs con glow effect ---
+    .o_notebook .nav-tabs {
+        border-bottom: 1px solid rgba($gray-200, 0.8);
+        gap: 4px;
+
+        .nav-link {
+            border-radius: 8px 8px 0 0;
+            font-weight: 500;
+            padding: 10px 20px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            color: $gray-500;
+            position: relative;
+
+            &:hover:not(.active) {
+                background: rgba($o-brand-primary, 0.06);
+                color: $o-brand-primary;
+            }
+
+            &.active {
+                color: $o-brand-primary;
+                background: rgba($o-brand-primary, 0.04);
+                border-bottom: 2px solid $o-brand-primary;
+                margin-bottom: -1px;
+                box-shadow: 0 2px 8px rgba($o-brand-primary, 0.1);
+            }
+        }
+    }
+
+    // --- Statusbar con pill glow ---
+    .o_statusbar_status {
+        .o_arrow_button {
+            border-radius: 20px;
+            padding: 4px 18px;
+            font-weight: 500;
+            margin: 0 3px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid transparent;
+
+            &.o_arrow_button_current {
+                background: linear-gradient(135deg, $o-brand-primary, darken($o-brand-primary, 8%));
+                color: $white;
+                box-shadow: 0 4px 15px rgba($o-brand-primary, 0.35), 0 0 20px rgba($o-brand-primary, 0.1);
+                border-color: transparent;
+            }
+        }
+    }
+
+    // --- Botones con gradient + glass ---
+    .o_form_statusbar .o_statusbar_buttons {
+        .btn-primary {
+            border-radius: 8px;
+            background: linear-gradient(135deg, $o-brand-primary, darken($o-brand-primary, 10%));
+            box-shadow: 0 4px 15px rgba($o-brand-primary, 0.3);
+            font-weight: 500;
+            padding: 7px 22px;
+            border: none;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+            &:hover {
+                box-shadow: 0 6px 20px rgba($o-brand-primary, 0.4), 0 0 30px rgba($o-brand-primary, 0.1);
+                transform: translateY(-2px);
+            }
+
+            &:active {
+                transform: translateY(0);
+                box-shadow: 0 2px 8px rgba($o-brand-primary, 0.25);
+            }
+        }
+
+        .btn-secondary {
+            border-radius: 8px;
+            border: 1px solid rgba($gray-300, 0.8);
+            background: rgba($gray-100, 0.6);
+            backdrop-filter: blur(4px);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+            &:hover {
+                background: rgba($gray-200, 0.8);
+                border-color: $gray-400;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            }
+        }
+    }
+
+    // --- Sheet con glass card ---
+    .o_form_sheet_bg > .o_form_sheet {
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 20px rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba($gray-200, 0.5);
+    }
+}
+
+// =============================================================================
+// BOTONES GLOBALES - gradient style
+// =============================================================================
+.btn-primary {
+    border-radius: 8px;
+    background: linear-gradient(135deg, $o-brand-primary, darken($o-brand-primary, 10%));
+    border: none;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba($o-brand-primary, 0.2);
+
+    &:hover {
+        box-shadow: 0 4px 15px rgba($o-brand-primary, 0.35);
+        transform: translateY(-1px);
+        background: linear-gradient(135deg, lighten($o-brand-primary, 3%), darken($o-brand-primary, 6%));
+    }
+
+    &:active {
+        transform: translateY(0);
+    }
+}
+
+// =============================================================================
+// LISTA - glass headers + rows refinadas
+// =============================================================================
+.o_list_view {
+    .o_data_row {
+        transition: all 0.15s ease;
+
+        &:nth-child(even) {
+            background-color: rgba($gray-100, 0.35);
+        }
+
+        &:hover {
+            background-color: rgba($o-brand-primary, 0.04);
+            box-shadow: inset 3px 0 0 $o-brand-primary;
+        }
+    }
+
+    thead th {
+        background: rgba($gray-100, 0.7);
+        backdrop-filter: blur(8px);
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: $gray-700;
+        padding: 10px 8px;
+        border-bottom: 2px solid rgba($o-brand-primary, 0.15);
+    }
+}
+
+// =============================================================================
+// BADGES - pill glass style
+// =============================================================================
+.badge {
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+// =============================================================================
+// KANBAN - glass cards
+// =============================================================================
+.o_kanban_view {
+    .o_kanban_record {
+        border-radius: 12px;
+        border: 1px solid rgba($gray-200, 0.6);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            border-color: rgba($o-brand-primary, 0.2);
+        }
+    }
+
+    .o_kanban_group_header {
+        border-radius: 10px;
+    }
+}
+
+// =============================================================================
+// CONTROL PANEL - glass breadcrumb
+// =============================================================================
+.o_control_panel {
+    .breadcrumb-item {
+        a {
+            transition: color 0.15s ease;
+
+            &:hover {
+                color: $o-brand-primary;
+            }
+        }
+    }
+
+    .o_searchview {
+        border-radius: 10px;
+        border: 1px solid rgba($gray-300, 0.6);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+        &:focus-within {
+            border-color: $o-brand-primary;
+            box-shadow: 0 0 0 3px rgba($o-brand-primary, 0.1), 0 4px 12px rgba($o-brand-primary, 0.06);
+        }
+    }
+}
+
+// =============================================================================
+// DROPDOWNS - glass panels
+// =============================================================================
+.dropdown-menu {
+    border-radius: 12px;
+    border: 1px solid rgba($gray-200, 0.6);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
+    backdrop-filter: blur(12px);
+    padding: 6px;
+    animation: dropdownFadeIn 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+
+    .dropdown-item {
+        border-radius: 8px;
+        padding: 8px 12px;
+        transition: all 0.15s ease;
+
+        &:hover, &:focus {
+            background: rgba($o-brand-primary, 0.06);
+        }
+
+        &.active, &:active {
+            background: rgba($o-brand-primary, 0.1);
+            color: $o-brand-primary;
+        }
+    }
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+// =============================================================================
+// SCROLLBAR personalizada
+// =============================================================================
+.o_action_manager {
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: rgba($gray-400, 0.4);
+        border-radius: 3px;
+
+        &:hover {
+            background: rgba($gray-500, 0.6);
+        }
+    }
+}

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Grupo técnico (sin category_id → no aparece en el form de usuarios).
+        Se asigna y revoca automáticamente desde hr.employee según el flag
+        "puede_facturar". Otorga ACL mínima sobre sale.order / sale.order.line
+        para que un Usuario de Agenda pueda crear el pedido desde el botón
+        "Facturar" del turno, sin recibir grupos de Ventas ni Contabilidad.
+        El alcance lo restringe la ir.rule a sus propios turnos.
+    -->
+    <record id="innatum_agenda_group_puede_facturar" model="res.groups">
+        <field name="name">Agenda · Puede facturar (técnico)</field>
+        <field name="comment">Grupo técnico gestionado automáticamente por el flag "Puede facturar" del empleado. No asignar manualmente.</field>
+        <!-- Implica "Billing" para habilitar los botones del flujo
+             (Confirmar factura, Registrar pago, etc.). El alcance real
+             se restringe vía ir.rule a los movimientos del propio empleado. -->
+        <field name="implied_ids" eval="[(4, ref('account.group_account_invoice'))]"/>
+    </record>
+
+</odoo>

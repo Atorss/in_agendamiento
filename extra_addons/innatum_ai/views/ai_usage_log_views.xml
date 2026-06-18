@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <record id="view_ai_usage_log_list" model="ir.ui.view">
+        <field name="name">innatum.ai.usage.log.list</field>
+        <field name="model">innatum.ai.usage.log</field>
+        <field name="arch" type="xml">
+            <list string="Registro de Uso de IA" create="0" edit="0" delete="0"
+                  default_order="create_date desc">
+                <field name="create_date"/>
+                <field name="source"/>
+                <field name="user_id"/>
+                <field name="provider_id"/>
+                <field name="model"/>
+                <field name="input_tokens" sum="Total in"/>
+                <field name="output_tokens" sum="Total out"/>
+                <field name="total_tokens" sum="Total tokens"/>
+                <field name="cost_usd" sum="Costo total (USD)" widget="monetary"/>
+                <field name="record_ref" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ai_usage_log_search" model="ir.ui.view">
+        <field name="name">innatum.ai.usage.log.search</field>
+        <field name="model">innatum.ai.usage.log</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="source"/>
+                <field name="user_id"/>
+                <field name="provider_id"/>
+                <field name="model"/>
+                <filter name="this_month" string="Este mes"
+                        domain="[('create_date', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d'))]"/>
+                <filter name="today" string="Hoy"
+                        domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d'))]"/>
+                <group string="Agrupar por">
+                    <filter name="group_source" string="Origen" context="{'group_by': 'source'}"/>
+                    <filter name="group_user" string="Usuario" context="{'group_by': 'user_id'}"/>
+                    <filter name="group_provider" string="Proveedor" context="{'group_by': 'provider_id'}"/>
+                    <filter name="group_model" string="Modelo" context="{'group_by': 'model'}"/>
+                    <filter name="group_day" string="Día" context="{'group_by': 'create_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ai_usage_log" model="ir.actions.act_window">
+        <field name="name">Registro de Uso de IA</field>
+        <field name="res_model">innatum.ai.usage.log</field>
+        <field name="view_mode">list</field>
+        <field name="context">{'search_default_this_month': 1}</field>
+    </record>
+
+</odoo>

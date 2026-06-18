@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================ -->
+    <!-- HOMEPAGE: Página principal del negocio                        -->
+    <!-- ============================================================ -->
+    <template id="homepage" name="Innatum Agenda - Página Principal">
+        <t t-call="website.layout">
+            <t t-set="no_header" t-value="False"/>
+            <div id="wrap" class="inmed-home">
+
+                <!-- ===== HERO (slideshow) ===== -->
+                <section class="inmed-hero">
+                    <div class="inmed-hero__slideshow">
+                        <img src="/innatum_agenda_web/static/src/img/hero_1.svg"
+                             alt="Servicio profesional" class="inmed-hero__slide inmed-hero__slide--active"/>
+                        <img src="/innatum_agenda_web/static/src/img/hero_2.svg"
+                             alt="Atención personalizada" class="inmed-hero__slide"/>
+                        <img src="/innatum_agenda_web/static/src/img/hero_3.svg"
+                             alt="Agenda en línea" class="inmed-hero__slide"/>
+                        <div class="inmed-hero__overlay"/>
+                    </div>
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-7 col-md-9">
+                                <span class="inmed-hero__badge">Agenda en Línea</span>
+                                <h1 class="inmed-hero__title">
+                                    Tu agenda,<br/>a un clic
+                                </h1>
+                                <p class="inmed-hero__subtitle">
+                                    Contamos con un equipo de profesionales comprometidos
+                                    con tu atención. Reserva tu horario en línea de forma rápida y sencilla.
+                                </p>
+                                <div class="inmed-hero__actions">
+                                    <a href="/citas" class="inmed-btn inmed-btn--primary">
+                                        <i class="fa fa-calendar-plus-o me-2"/>Reservar Turno
+                                    </a>
+                                    <a href="#equipo" class="inmed-btn inmed-btn--outline">
+                                        <i class="fa fa-users me-2"/>Nuestro Equipo
+                                    </a>
+                                </div>
+                                <div class="inmed-hero__stats">
+                                    <div class="inmed-hero__stat">
+                                        <span class="inmed-hero__stat-number"><t t-out="len(servicios)"/></span>
+                                        <span class="inmed-hero__stat-label">Servicios</span>
+                                    </div>
+                                    <div class="inmed-hero__stat">
+                                        <span class="inmed-hero__stat-number"><t t-out="len(profesionales)"/></span>
+                                        <span class="inmed-hero__stat-label">Profesionales</span>
+                                    </div>
+                                    <div class="inmed-hero__stat">
+                                        <span class="inmed-hero__stat-number">24/7</span>
+                                        <span class="inmed-hero__stat-label">Agendamiento</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== EQUIPO PROFESIONAL ===== -->
+                <section id="equipo" class="inmed-section inmed-section--gray">
+                    <div class="container">
+                        <div class="inmed-section__header">
+                            <span class="inmed-section__tag">Equipo Profesional</span>
+                            <h2 class="inmed-section__title">Nuestros Profesionales</h2>
+                            <p class="inmed-section__desc">
+                                Profesionales comprometidos con tu atención.
+                                Agenda directamente con quien necesitas.
+                            </p>
+                        </div>
+                        <div class="row g-4">
+                            <t t-foreach="profesionales" t-as="prof">
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="inmed-prof-card">
+                                        <!-- Foto -->
+                                        <div class="inmed-prof-card__photo">
+                                            <t t-if="prof.id in prof_con_foto">
+                                                <img t-attf-src="data:image/png;base64,#{prof.image_1024.decode() if prof.image_1024 else ''}"
+                                                     t-att-alt="prof.name"
+                                                     class="inmed-prof-card__img"/>
+                                            </t>
+                                            <t t-else="">
+                                                <div class="inmed-prof-card__placeholder">
+                                                    <svg viewBox="0 0 200 200" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                                                        <rect width="200" height="200" fill="#e8f4f8"/>
+                                                        <circle cx="100" cy="75" r="35" fill="#0891b2" opacity="0.2"/>
+                                                        <circle cx="100" cy="75" r="28" fill="#0891b2" opacity="0.3"/>
+                                                        <path d="M100 110 C60 110 35 140 35 170 L35 200 L165 200 L165 170 C165 140 140 110 100 110Z" fill="#0891b2" opacity="0.2"/>
+                                                        <text x="100" y="82" text-anchor="middle" font-size="30" fill="#0891b2" font-family="sans-serif" opacity="0.6">
+                                                            <t t-esc="prof.name[:1].upper()"/>
+                                                        </text>
+                                                    </svg>
+                                                </div>
+                                            </t>
+                                        </div>
+                                        <!-- Info -->
+                                        <div class="inmed-prof-card__body">
+                                            <h4 class="inmed-prof-card__name">
+                                                <t t-out="prof.name"/>
+                                            </h4>
+                                            <p class="inmed-prof-card__title">
+                                                <t t-if="prof.job_title" t-out="prof.job_title"/>
+                                                <t t-else=""><![CDATA[&nbsp;]]></t>
+                                            </p>
+                                            <!-- Servicios que brinda -->
+                                            <div class="inmed-prof-card__services"
+                                                 t-if="prof_servicios.get(prof.id)">
+                                                <t t-foreach="prof_servicios.get(prof.id, [])" t-as="svc">
+                                                    <span class="inmed-prof-card__svc-chip">
+                                                        <t t-out="svc['name']"/>
+                                                    </span>
+                                                </t>
+                                            </div>
+                                            <!-- Botón agendar -->
+                                            <a t-attf-href="/citas?professional_id=#{prof.id}"
+                                               class="inmed-prof-card__btn">
+                                                <i class="fa fa-calendar-plus-o me-2"/>Reservar Turno
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== CÓMO FUNCIONA ===== -->
+                <section class="inmed-section">
+                    <div class="container">
+                        <div class="inmed-section__header">
+                            <span class="inmed-section__tag">Proceso</span>
+                            <h2 class="inmed-section__title">Reserva en 3 simples pasos</h2>
+                            <p class="inmed-section__desc">
+                                Agendar tu servicio nunca fue tan fácil.
+                            </p>
+                        </div>
+                        <div class="row g-4">
+                            <div class="col-md-4">
+                                <div class="inmed-step">
+                                    <div class="inmed-step__number">1</div>
+                                    <div class="inmed-step__icon">
+                                        <i class="fa fa-search"/>
+                                    </div>
+                                    <h4 class="inmed-step__title">Elige servicio y profesional</h4>
+                                    <p class="inmed-step__text">Selecciona el servicio que necesitas y elige entre nuestros profesionales disponibles.</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="inmed-step">
+                                    <div class="inmed-step__number">2</div>
+                                    <div class="inmed-step__icon">
+                                        <i class="fa fa-calendar"/>
+                                    </div>
+                                    <h4 class="inmed-step__title">Selecciona fecha y hora</h4>
+                                    <p class="inmed-step__text">Consulta los horarios disponibles y elige la fecha y hora que más te convenga.</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="inmed-step">
+                                    <div class="inmed-step__number">3</div>
+                                    <div class="inmed-step__icon">
+                                        <i class="fa fa-check-circle"/>
+                                    </div>
+                                    <h4 class="inmed-step__title">Confirma tu reserva</h4>
+                                    <p class="inmed-step__text">Ingresa tus datos, confirma y recibe la notificación de tu turno agendado.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-5">
+                            <a href="/citas" class="inmed-btn inmed-btn--primary inmed-btn--lg">
+                                <i class="fa fa-calendar-plus-o me-2"/>Reservar mi Turno Ahora
+                            </a>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== CTA FINAL ===== -->
+                <section class="inmed-section">
+                    <div class="container">
+                        <div class="inmed-cta">
+                            <div class="row align-items-center">
+                                <div class="col-lg-8">
+                                    <h2 class="inmed-cta__title">¿Listo para agendar?</h2>
+                                    <p class="inmed-cta__text">
+                                        No esperes más. Reserva tu turno con nuestros profesionales
+                                        y recibe la atención que mereces.
+                                    </p>
+                                </div>
+                                <div class="col-lg-4 text-lg-end text-center">
+                                    <a href="/citas" class="inmed-btn inmed-btn--primary inmed-btn--lg">
+                                        <i class="fa fa-calendar-plus-o me-2"/>Reservar Turno
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </t>
+    </template>
+
+</odoo>

@@ -1,0 +1,13 @@
+// Colors - Innatum Agenda (Indigo Calendly-like)
+
+$mk_color_appsmenu_text: #EEF2FF;
+$mk_color_appbar_text: #C7D2FE;
+$mk_color_appbar_active: #6366F1;
+$mk_color_appbar_background: #1E1B4B;
+
+// Override
+
+$mk-appsmenu-color: $mk_color_appsmenu_text;
+$mk-appbar-color: $mk_color_appbar_text;
+$mk-appbar-active: $mk_color_appbar_active;
+$mk-appbar-background: $mk_color_appbar_background;

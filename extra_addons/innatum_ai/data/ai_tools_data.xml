@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Tool: List Model Fields (FIRST so AI discovers fields before searching) -->
+        <record id="tool_list_model_fields" model="innatum.ai.tool">
+            <field name="name">list_model_fields</field>
+            <field name="display_name_field">Listar campos de modelo</field>
+            <field name="description">Lista TODOS los campos disponibles de un modelo de Odoo con su tipo y descripción. SIEMPRE usa esta herramienta ANTES de buscar registros para conocer los campos reales del modelo. Esto evita errores por campos inexistentes.</field>
+            <field name="tool_type">list_fields</field>
+            <field name="sequence">0</field>
+            <field name="requires_confirmation">0</field>
+        </record>
+
+        <!-- Tool: Search Records -->
+        <record id="tool_search_records" model="innatum.ai.tool">
+            <field name="name">search_records</field>
+            <field name="display_name_field">Buscar registros</field>
+            <field name="description">Busca registros en cualquier modelo de Odoo. Usa esta herramienta para consultar datos como clientes, productos, facturas, pedidos, empleados, etc. Puedes filtrar con dominios, elegir qué campos traer, limitar resultados y ordenarlos.</field>
+            <field name="tool_type">search</field>
+            <field name="sequence">1</field>
+            <field name="requires_confirmation">0</field>
+        </record>
+
+        <!-- Tool: Read Records -->
+        <record id="tool_read_records" model="innatum.ai.tool">
+            <field name="name">read_records</field>
+            <field name="display_name_field">Leer registros</field>
+            <field name="description">Lee los detalles completos de registros específicos por sus IDs. Útil cuando ya conoces los IDs de los registros y necesitas ver sus campos.</field>
+            <field name="tool_type">read</field>
+            <field name="sequence">2</field>
+            <field name="requires_confirmation">0</field>
+        </record>
+
+        <!-- Tool: Create Record -->
+        <record id="tool_create_record" model="innatum.ai.tool">
+            <field name="name">create_record</field>
+            <field name="display_name_field">Crear registro</field>
+            <field name="description">Crea un nuevo registro en cualquier modelo de Odoo. Proporciona el modelo y los valores como JSON. Ejemplo: modelo res.partner con valores {"name": "Juan", "email": "juan@ejemplo.com"}.</field>
+            <field name="tool_type">create</field>
+            <field name="sequence">3</field>
+            <field name="requires_confirmation">1</field>
+            <field name="group_ids" eval="[(4, ref('group_ai_manager'))]"/>
+        </record>
+
+        <!-- Tool: Write Record -->
+        <record id="tool_write_record" model="innatum.ai.tool">
+            <field name="name">write_record</field>
+            <field name="display_name_field">Modificar registro</field>
+            <field name="description">Modifica registros existentes en Odoo. Proporciona el modelo, los IDs de los registros y los valores a actualizar como JSON.</field>
+            <field name="tool_type">write</field>
+            <field name="sequence">4</field>
+            <field name="requires_confirmation">1</field>
+            <field name="group_ids" eval="[(4, ref('group_ai_manager'))]"/>
+        </record>
+
+        <!-- Tool: Delete Record -->
+        <record id="tool_delete_record" model="innatum.ai.tool">
+            <field name="name">delete_record</field>
+            <field name="display_name_field">Eliminar registro</field>
+            <field name="description">Elimina registros de Odoo. CUIDADO: esta acción es irreversible. Proporciona el modelo y los IDs de los registros a eliminar.</field>
+            <field name="tool_type">unlink</field>
+            <field name="sequence">5</field>
+            <field name="requires_confirmation">1</field>
+            <field name="group_ids" eval="[(4, ref('group_ai_admin'))]"/>
+        </record>
+
+        <!-- Tool: Execute Method -->
+        <record id="tool_execute_method" model="innatum.ai.tool">
+            <field name="name">execute_method</field>
+            <field name="display_name_field">Ejecutar método</field>
+            <field name="description">Ejecuta un método público de un modelo de Odoo. Útil para acciones como confirmar pedidos, validar facturas, etc. Solo métodos públicos (no empiezan con _).</field>
+            <field name="tool_type">method</field>
+            <field name="sequence">6</field>
+            <field name="requires_confirmation">1</field>
+            <field name="group_ids" eval="[(4, ref('group_ai_manager'))]"/>
+        </record>
+
+        <!-- Tool: SQL Report -->
+        <record id="tool_sql_report" model="innatum.ai.tool">
+            <field name="name">sql_report</field>
+            <field name="display_name_field">Reporte SQL</field>
+            <field name="description">Genera y ejecuta una consulta SQL de solo lectura para análisis de datos avanzado. Describe en lenguaje natural qué datos necesitas y se generará la consulta SQL automáticamente. Solo SELECT, nunca modifica datos.</field>
+            <field name="tool_type">sql_report</field>
+            <field name="sequence">7</field>
+            <field name="requires_confirmation">0</field>
+        </record>
+
+    </data>
+</odoo>

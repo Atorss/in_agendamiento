@@ -1,0 +1,64 @@
+.o-mail-Chatter-top:has(.o-mail-Chatter-sendMessage.active) .o-mail-Composer-send {
+    @extend .btn-danger
+}
+
+.o-mail-Form-chatter.o-aside {
+    .mk_chatter_resize {
+        top: 0;
+        bottom: 0;
+        width: 5px;
+        height: 100%;
+        cursor: col-resize;
+        position: absolute;
+        z-index: $o-mail-NavigableList-zIndex + 1;
+        border-left: var(--ControlPanel-border-bottom, 1px solid $o-gray-300);
+        transition: border-color 0.15s ease;
+
+        &:hover {
+            border-left-color: $o-brand-primary;
+        }
+    }
+}
+
+// Mensajes del chatter con mejor separación
+.o-mail-Message {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    padding: 12px 0;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+        background-color: rgba(0, 0, 0, 0.01);
+    }
+}
+
+// Composer más visible
+.o-mail-Composer {
+    .o-mail-Composer-input {
+        border-radius: 8px;
+        border: 1px solid $o-gray-300;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+        &:focus {
+            border-color: $o-brand-primary;
+            box-shadow: 0 0 0 3px rgba($o-brand-primary, 0.08);
+        }
+    }
+}
+
+// Botones de log/mensaje con mejor aspecto
+.o-mail-Chatter-top {
+    .btn-link {
+        border-radius: 6px;
+        padding: 4px 12px;
+        transition: background-color 0.15s ease;
+
+        &:hover {
+            background: rgba($o-brand-primary, 0.06);
+        }
+
+        &.active {
+            background: rgba($o-brand-primary, 0.1);
+            font-weight: 500;
+        }
+    }
+}

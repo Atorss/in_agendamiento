@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Menús del sitio web se gestionan desde el panel de Odoo Website.
+         No se definen aquí para evitar duplicación al actualizar el módulo. -->
+</odoo>

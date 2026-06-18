@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <record id="menu_group_medic_administracion" model="ir.ui.menu.group">
+            <field name="name">Administración</field>
+            <field name="sequence">10</field>
+            <field name="icon" type="base64" file="muk_web_appsbar/static/description/icono_grupo/administracion.png"/>
+        </record>
+
+        <record id="menu_group_medic_financiero" model="ir.ui.menu.group">
+            <field name="name">Gestion Financiera</field>
+            <field name="sequence">30</field>
+            <field name="icon" type="base64" file="muk_web_appsbar/static/description/icono_grupo/gestion_financiera.png"/>
+        </record>
+
+        <!-- Grupo "Innatum": herramientas internas exclusivas del SaaS owner.
+             noupdate="1" como los otros: solo se crea en la primera carga;
+             el wiring de menús lo hace innatum_ai (noupdate="0"). -->
+        <record id="menu_group_innatum" model="ir.ui.menu.group">
+            <field name="name">Innatum</field>
+            <field name="sequence">90</field>
+            <field name="icon" type="base64" file="muk_web_appsbar/static/img/iconos_grupo/innatum.png"/>
+        </record>
+
+    </data>
+</odoo>

@@ -1,0 +1,52 @@
+services:
+  web:
+    image: odoo:18.0
+    container_name: in_agendamiento_web
+    depends_on:
+      - db
+    volumes:
+      - in_agendamiento_web_data:/var/lib/odoo
+      - ./config:/etc/odoo
+      - ./extra_addons:/mnt/extra-addons
+    ports:
+      - "8070:8069"
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=${POSTGRES_PASSWORD}
+    networks:
+      - default
+      - red-proxy
+    restart: unless-stopped
+
+  db:
+    image: postgres:18-alpine
+    container_name: in_agendamiento_db
+    command: >
+      -c shared_buffers=2GB
+      -c effective_cache_size=4GB
+      -c work_mem=64MB
+      -c maintenance_work_mem=512MB
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=64MB
+      -c default_statistics_target=100
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - in_agendamiento_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    shm_size: '2gb'
+
+volumes:
+  in_agendamiento_web_data:
+  in_agendamiento_db_data:
+
+networks:
+  default:
+    driver: bridge
+  red-proxy:
+    external: true

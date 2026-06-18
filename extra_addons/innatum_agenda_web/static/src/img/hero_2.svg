@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="800" viewBox="0 0 1920 800">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#312e81;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#4f46e5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f97066;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="800" fill="url(#bg2)"/>
+  <circle cx="500" cy="200" r="300" fill="rgba(255,255,255,0.04)"/>
+  <circle cx="1600" cy="600" r="220" fill="rgba(255,255,255,0.05)"/>
+  <text x="960" y="420" text-anchor="middle" font-family="sans-serif" font-size="28" fill="rgba(255,255,255,0.25)" font-weight="600">Reemplace con imagen de su negocio (1920x800)</text>
+</svg>

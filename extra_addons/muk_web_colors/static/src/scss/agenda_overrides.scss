@@ -1,0 +1,55 @@
+// ============================================================
+// Innatum Agenda Backend Theme - Variables Primary Odoo
+// ============================================================
+// Paleta Indigo profundo estilo Calendly / Cal.com - neutra
+// para SaaS de agendamiento de cualquier tipo de servicio.
+
+// --- Paleta Innatum Agenda (Indigo) ---
+$inag-indigo-50:        #EEF2FF;   // hover muy suave / fondos sutiles
+$inag-indigo-100:       #E0E7FF;   // texto sobre fondos oscuros
+$inag-indigo-200:       #C7D2FE;   // texto secundario en sidebar
+$inag-indigo-300:       #A5B4FC;
+$inag-indigo-400:       #818CF8;
+$inag-indigo-500:       #6366F1;   // ACENTO activo / hover principal
+$inag-indigo-600:       #4F46E5;   // PRIMARY (botones)
+$inag-indigo-700:       #4338CA;   // primary-dark / hover boton
+$inag-indigo-800:       #3730A3;
+$inag-indigo-900:       #312E81;   // sidebar hover bg
+$inag-indigo-950:       #1E1B4B;   // NAVBAR / SIDEBAR background
+
+$inag-text:             #0F172A;   // texto principal sobre fondo claro
+$inag-text-light:       #475569;   // texto secundario
+$inag-text-muted:       #94A3B8;   // texto desactivado
+$inag-bg:               #F8FAFC;   // fondo de contenido
+$inag-bg-card:          #FFFFFF;   // fondo de cards/sheet
+$inag-divider:          #E2E8F0;   // separadores
+
+// --- Override de variables principales de Odoo ---
+$o-brand-odoo:                $inag-indigo-600;
+$o-brand-primary:             $inag-indigo-600;
+$o-community-color:           $inag-indigo-600;
+$o-enterprise-color:          $inag-indigo-700;
+$o-enterprise-action-color:   $inag-indigo-500;
+$o-action:                    $inag-indigo-600;
+
+// Tipografia
+$o-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !default;
+
+// Colores de estado
+$o-success: #16A34A;
+$o-info:    $inag-indigo-500;
+$o-warning: #D97706;
+$o-danger:  #DC2626;
+
+// Webclient
+$o-webclient-background-color: $inag-bg;
+$o-view-background-color:      $inag-bg-card;
+$o-main-text-color:            $inag-text;
+$o-main-color-muted:           $inag-text-muted;
+
+// Navbar (barra horizontal superior - indigo oscuro)
+$o-navbar-background-color:    $inag-indigo-950;
+$o-navbar-text-color:          $inag-indigo-100;
+$o-navbar-active-color:        $inag-indigo-500;
+$o-navbar-hover-background:    rgba($inag-indigo-500, 0.18);
+$o-navbar-height:              48px;

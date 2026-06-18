@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Multi-company global rule para sesiones del chatbot web.
+
+         El chatbot público crea sesiones vía .sudo() desde el controller;
+         esta rule garantiza que cualquier acceso desde el back-end
+         (admin de Innatum, soporte) solo vea sesiones del tenant
+         correspondiente.
+         ============================================================ -->
+
+    <record id="rule_chatbot_session_multi_company" model="ir.rule">
+        <field name="name">Sesión chatbot: aislamiento por tenant</field>
+        <field name="model_id" ref="model_innatum_ai_chatbot_session"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_id', 'in', company_ids)]</field>
+    </record>
+
+</odoo>

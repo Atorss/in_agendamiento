@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Extensión de la vista del wizard de provisioning (in_agenda.tenant.wizard).
+        Agrega 2 grupos al final del form:
+          1. Configuración del agente IA (vertical_template_id, bot_name, payment_policy)
+          2. Credenciales técnicas WhatsApp (Meta + Supabase)
+
+        Estos campos viven en el wizard como transient — al ejecutar
+        action_provision_tenant la extensión (innatum_ai_core) los aplica a
+        res.company + crea el business_profile vinculado.
+    -->
+    <record id="view_in_agenda_tenant_wizard_form_whatsapp_inherit" model="ir.ui.view">
+        <field name="name">in_agenda.tenant.wizard.form.whatsapp.inherit</field>
+        <field name="model">in_agenda.tenant.wizard</field>
+        <field name="inherit_id"
+               ref="innatum_agenda_planes.view_in_agenda_tenant_wizard_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <group string="Configuración del agente IA">
+                    <group>
+                        <field name="vertical_template_id"
+                               required="1"
+                               options="{'no_create': True}"/>
+                        <field name="bot_name"
+                               placeholder="Sofía, Asistente, etc."/>
+                    </group>
+                    <group>
+                        <field name="payment_policy_initial"/>
+                    </group>
+                </group>
+                <group string="Credenciales WhatsApp (Meta Cloud API)">
+                    <group>
+                        <field name="wa_phone_number_id"
+                               placeholder="123456789012345"/>
+                        <field name="wa_business_account_id"
+                               placeholder="WABA ID"/>
+                    </group>
+                    <group>
+                        <field name="supabase_tenant_id"
+                               placeholder="UUID de la fila en Supabase"/>
+                    </group>
+                </group>
+                <div class="alert alert-warning" role="alert">
+                    <i class="fa fa-info-circle"/>
+                    Las credenciales de Meta y el UUID de Supabase son configuración
+                    técnica que solo gestiona Innatum staff. Si todavía no tenés el
+                    número de WhatsApp Business listo, podés dejar estos campos
+                    vacíos y completarlos después desde
+                    <b>Settings → Companies → tu tenant</b>.
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

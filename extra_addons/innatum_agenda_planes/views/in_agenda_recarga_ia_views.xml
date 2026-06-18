@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_in_agenda_recarga_ia_list" model="ir.ui.view">
+        <field name="name">in_agenda.recarga_ia.list</field>
+        <field name="model">in_agenda.recarga_ia</field>
+        <field name="arch" type="xml">
+            <list string="Recargas IA"
+                  decoration-success="state == 'vigente'"
+                  decoration-muted="state == 'agotada'">
+                <field name="fecha"/>
+                <field name="suscripcion_id"/>
+                <field name="company_id"/>
+                <field name="monto_cobrado_usd" sum="Total cobrado"/>
+                <field name="margen_pct_aplicado"/>
+                <field name="tokens_disponibles_usd" sum="Total disponible"/>
+                <field name="tokens_consumidos_usd" sum="Total consumido"/>
+                <field name="tokens_restantes_usd" sum="Total restante"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_in_agenda_recarga_ia_form" model="ir.ui.view">
+        <field name="name">in_agenda.recarga_ia.form</field>
+        <field name="model">in_agenda.recarga_ia</field>
+        <field name="arch" type="xml">
+            <form string="Recarga IA">
+                <header>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="vigente,agotada"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="display_name"/>
+                        <h1><field name="display_name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="suscripcion_id"/>
+                            <field name="company_id" readonly="1"/>
+                            <field name="fecha"/>
+                        </group>
+                        <group string="Cobro">
+                            <field name="monto_cobrado_usd"/>
+                            <field name="margen_pct_aplicado" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Saldo (real)">
+                        <group>
+                            <field name="tokens_disponibles_usd"/>
+                            <field name="tokens_consumidos_usd"/>
+                            <field name="tokens_restantes_usd"/>
+                        </group>
+                        <group string="Saldo (visto por tenant)">
+                            <field name="consumido_visible_usd"/>
+                            <field name="restante_visible_usd"/>
+                        </group>
+                    </group>
+                    <group string="Notas">
+                        <field name="notes" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_in_agenda_recarga_ia" model="ir.actions.act_window">
+        <field name="name">Recargas IA</field>
+        <field name="res_model">in_agenda.recarga_ia</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

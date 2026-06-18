@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Acciones y menús "Mis Ventas" / "Mis Facturas" para el grupo
+        técnico "Puede facturar". Reusan las vistas nativas de Odoo
+        (kanban, list, form). El alcance está garantizado por las
+        ir.rule del módulo, que filtran a los registros del propio
+        usuario.
+    -->
+
+    <record id="action_facturacion_mis_ventas" model="ir.actions.act_window">
+        <field name="name">Mis Ventas</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="context">{'search_default_my_sale_orders_filter': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Aún no tienes pedidos de venta
+            </p>
+            <p>
+                Aquí verás los pedidos creados desde el botón "Facturar"
+                de tus turnos.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_facturacion_mis_facturas" model="ir.actions.act_window">
+        <field name="name">Mis Facturas</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="domain">[('move_type', 'in', ('out_invoice', 'out_refund'))]</field>
+        <field name="context">{
+            'default_move_type': 'out_invoice',
+            'search_default_invoices': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Aún no tienes facturas emitidas
+            </p>
+            <p>
+                Aquí verás las facturas que generes desde tus pedidos
+                de venta.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="innatum_agenda_menu_facturacion"
+              name="Ventas y Facturación"
+              parent="innatum_agenda_core.innatum_agenda_menu_root"
+              groups="innatum_agenda_facturacion.innatum_agenda_group_puede_facturar"
+              sequence="30"/>
+
+    <menuitem id="innatum_agenda_menu_mis_ventas"
+              name="Mis Ventas"
+              parent="innatum_agenda_menu_facturacion"
+              action="action_facturacion_mis_ventas"
+              groups="innatum_agenda_facturacion.innatum_agenda_group_puede_facturar"
+              sequence="10"/>
+
+    <menuitem id="innatum_agenda_menu_mis_facturas"
+              name="Mis Facturas"
+              parent="innatum_agenda_menu_facturacion"
+              action="action_facturacion_mis_facturas"
+              groups="innatum_agenda_facturacion.innatum_agenda_group_puede_facturar"
+              sequence="20"/>
+
+    <!--
+        Reportes nativos: pivot + graph + list. La ir.rule limita los
+        registros visibles a los del propio usuario, por lo que el
+        reporte siempre será "lo mío".
+    -->
+
+    <record id="action_facturacion_reporte_ventas" model="ir.actions.act_window">
+        <field name="name">Reporte de Ventas</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">pivot,graph,list,form</field>
+        <field name="context">{
+            'search_default_filter_create_date': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Reporte dinámico de tus ventas
+            </p>
+            <p>
+                Usa el pivot para cruzar por cliente, servicio, fecha o estado.
+                Cambia a gráfico para visualizar tendencias.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_facturacion_reporte_facturas" model="ir.actions.act_window">
+        <field name="name">Reporte de Facturas</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">pivot,graph,list,form</field>
+        <field name="domain">[('move_type', 'in', ('out_invoice', 'out_refund'))]</field>
+        <field name="context">{
+            'search_default_filter_invoice_date': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Reporte dinámico de tus facturas
+            </p>
+            <p>
+                Usa el pivot para cruzar por cliente, fecha o estado.
+                Cambia a gráfico para visualizar montos por mes.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="innatum_agenda_menu_reportes"
+              name="Reportes"
+              parent="innatum_agenda_menu_facturacion"
+              groups="innatum_agenda_facturacion.innatum_agenda_group_puede_facturar"
+              sequence="30"/>
+
+    <menuitem id="innatum_agenda_menu_reporte_ventas"
+              name="Reporte de Ventas"
+              parent="innatum_agenda_menu_reportes"
+              action="action_facturacion_reporte_ventas"
+              groups="innatum_agenda_facturacion.innatum_agenda_group_puede_facturar"
+              sequence="10"/>
+
+    <menuitem id="innatum_agenda_menu_reporte_facturas"
+              name="Reporte de Facturas"
+              parent="innatum_agenda_menu_reportes"
+              action="action_facturacion_reporte_facturas"
+              groups="innatum_agenda_facturacion.innatum_agenda_group_puede_facturar"
+              sequence="20"/>
+
+</odoo>

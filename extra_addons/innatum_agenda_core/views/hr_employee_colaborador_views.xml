@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Lista simplificada de colaboradores
+
+         El admin del tenant tiene ACL read-only sobre hr.employee.
+         Vista list/form filtrada por company que muestra solo los
+         campos relevantes para agenda. El botón "Nuevo" abre el
+         wizard (no permite create directo).
+         ============================================================ -->
+
+    <record id="view_hr_employee_colaborador_list" model="ir.ui.view">
+        <field name="name">hr.employee.colaborador.list</field>
+        <field name="model">hr.employee</field>
+        <field name="arch" type="xml">
+            <list string="Colaboradores" create="false" edit="false">
+                <field name="name"/>
+                <field name="job_title"/>
+                <field name="work_email"/>
+                <field name="work_phone"/>
+                <field name="identification_id"/>
+                <field name="active" widget="boolean_toggle" readonly="1"/>
+                <field name="company_id" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_hr_employee_colaborador_form" model="ir.ui.view">
+        <field name="name">hr.employee.colaborador.form</field>
+        <field name="model">hr.employee</field>
+        <field name="arch" type="xml">
+            <form string="Colaborador" create="false" edit="false">
+                <header>
+                    <button name="action_desactivar_colaborador" type="object"
+                            string="Desactivar" class="btn-warning"
+                            invisible="not active"
+                            confirm="¿Desactivar este colaborador? Quedará inactivo y no podrá iniciar sesión. Se puede reactivar después."/>
+                    <button name="action_reactivar_colaborador" type="object"
+                            string="Reactivar" class="btn-success"
+                            invisible="active"/>
+                </header>
+                <sheet>
+                    <field name="image_1920" widget="image" class="oe_avatar"/>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                        <h3><field name="job_title" readonly="1" placeholder="(sin cargo)"/></h3>
+                    </div>
+                    <group>
+                        <group string="Datos personales">
+                            <field name="identification_id" readonly="1"/>
+                            <field name="work_email" readonly="1"/>
+                            <field name="work_phone" readonly="1"/>
+                        </group>
+                        <group string="Sistema">
+                            <field name="user_id" readonly="1"/>
+                            <field name="active" readonly="1"/>
+                            <field name="company_id" readonly="1" groups="base.group_no_one"/>
+                        </group>
+                    </group>
+                </sheet>
+                <!-- Chatter omitido: incluye activity_ids/message_ids que
+                     requieren hr.group_hr_user. El admin del tenant gestiona
+                     colaboradores via wizard, no necesita chatter aquí. -->
+            </form>
+        </field>
+    </record>
+
+    <record id="view_hr_employee_colaborador_search" model="ir.ui.view">
+        <field name="name">hr.employee.colaborador.search</field>
+        <field name="model">hr.employee</field>
+        <field name="arch" type="xml">
+            <search string="Colaboradores">
+                <field name="name"/>
+                <field name="work_email"/>
+                <field name="identification_id"/>
+                <filter string="Activos" name="filter_activos"
+                        domain="[('active', '=', True)]"/>
+                <filter string="Inactivos" name="filter_inactivos"
+                        domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_innatum_colaboradores" model="ir.actions.act_window">
+        <field name="name">Colaboradores</field>
+        <field name="res_model">hr.employee</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_hr_employee_colaborador_list"/>
+        <field name="search_view_id" ref="view_hr_employee_colaborador_search"/>
+        <field name="context">{'search_default_filter_activos': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Aún no tienes colaboradores
+            </p>
+            <p>
+                Usá "Nuevo colaborador" en el menú para dar de alta a un
+                profesional. Se crea automáticamente el usuario, el
+                empleado y los permisos de agenda.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menú raíz propio "Colaboradores" — fuera de Agendamiento para
+         mejor organización visual del tenant -->
+    <menuitem id="menu_innatum_colaboradores_root"
+              name="Colaboradores"
+              sequence="60"
+              groups="innatum_agenda_group_user"/>
+
+    <!-- Lista de Colaboradores (read-only para tenant) -->
+    <menuitem id="menu_innatum_colaboradores"
+              name="Colaboradores"
+              parent="menu_innatum_colaboradores_root"
+              action="action_innatum_colaboradores"
+              sequence="5"
+              groups="innatum_agenda_group_user"/>
+
+    <!-- "Nuevo colaborador" → abre wizard, solo para admin del tenant -->
+    <menuitem id="menu_innatum_nuevo_colaborador"
+              name="Nuevo colaborador"
+              parent="menu_innatum_colaboradores_root"
+              action="action_in_agenda_colaborador_wizard"
+              sequence="10"
+              groups="innatum_agenda_group_admin"/>
+
+    <!-- ============================================================
+         Ocultar menú estándar "Empleados" para todos excepto admin
+         del sistema (Innatum). Mantenemos visible para soporte.
+         ============================================================ -->
+
+    <record id="hr.menu_hr_root" model="ir.ui.menu">
+        <field name="groups_id" eval="[(6, 0, [ref('base.group_system')])]"/>
+    </record>
+
+</odoo>

@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- LIST VIEW -->
+    <record id="innatum_agenda_turno_view_list" model="ir.ui.view">
+        <field name="name">innatum.agenda.turno.list</field>
+        <field name="model">innatum.agenda.turno</field>
+        <field name="arch" type="xml">
+            <list duplicate="0" string="Turnos"
+                  decoration-muted="state == 'cancelled'"
+                  decoration-success="state == 'available'"
+                  decoration-info="state in ('reserved', 'confirmed')"
+                  decoration-bf="state == 'done'">
+                <field name="is_usuario_only" column_invisible="1"/>
+                <field name="domain_servicio_ids" column_invisible="1" widget="many2many_tags"/>
+                <field name="name"/>
+                <field name="professional_id"
+                       widget="many2one_avatar_employee"
+                       readonly="is_usuario_only"
+                       force_save="1"/>
+                <field name="servicio_id" string="Servicio elegido"
+                       optional="show"/>
+                <field name="servicio_ids" widget="many2many_tags"
+                       string="Opciones" optional="hide"/>
+                <field name="partner_id"/>
+                <field name="date_start"/>
+                <field name="duration"/>
+                <field name="publicar" widget="boolean_toggle"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'available'"
+                       decoration-info="state in ('reserved', 'confirmed')"
+                       decoration-danger="state == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- FORM VIEW -->
+    <record id="innatum_agenda_turno_view_form" model="ir.ui.view">
+        <field name="name">innatum.agenda.turno.form</field>
+        <field name="model">innatum.agenda.turno</field>
+        <field name="arch" type="xml">
+            <form duplicate="0" string="Turno">
+                <header>
+                    <button name="action_reserve" string="Reservar" type="object" class="btn-primary" icon="fa-bookmark" invisible="state != 'available'"/>
+                    <button name="action_confirm" string="Confirmar" type="object" class="btn-primary" icon="fa-check" invisible="state != 'reserved'"/>
+                    <button name="action_done" string="Finalizar" type="object" class="btn-success" icon="fa-check-circle" invisible="state != 'confirmed'"/>
+                    <button name="action_cancel" string="Cancelar" type="object" class="btn-secondary" icon="fa-times" invisible="state in ('done', 'cancelled')"/>
+                    <button name="action_free" string="Liberar" type="object" class="btn-warning" icon="fa-unlock" invisible="state not in ('reserved', 'confirmed')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="available,reserved,confirmed,done"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Cancelado" bg_color="text-bg-danger" invisible="state != 'cancelled'"/>
+                    <widget name="web_ribbon" title="Finalizado" bg_color="text-bg-success" invisible="state != 'done'"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Servicio y Profesional">
+                            <field name="is_usuario_only" invisible="1"/>
+                            <field name="servicio_count" invisible="1"/>
+                            <field name="domain_servicio_ids" invisible="1" widget="many2many_tags"/>
+                            <field name="servicio_ids" widget="many2many_tags"
+                                   readonly="state != 'available'"
+                                   invisible="state != 'available'"
+                                   domain="[('id', 'in', domain_servicio_ids)]"
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="servicio_id"
+                                   string="Servicio elegido"
+                                   readonly="state in ('done', 'cancelled')"
+                                   required="state != 'available'"
+                                   invisible="state == 'available' and servicio_count &gt; 1"
+                                   domain="[('id', 'in', servicio_ids or domain_servicio_ids)]"
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="professional_id"
+                                   readonly="is_usuario_only or state in ('done', 'cancelled')"
+                                   force_save="1"
+                                   widget="many2one_avatar_employee"
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="config_id" readonly="1" invisible="not config_id"/>
+                        </group>
+                        <group string="Horario">
+                            <field name="date_start" readonly="state in ('done', 'cancelled')"/>
+                            <field name="date_end"/>
+                            <field name="duration" widget="float_time"/>
+                            <field name="publicar" readonly="state in ('done', 'cancelled')"/>
+                        </group>
+                    </group>
+                    <group string="Cliente">
+                        <group>
+                            <field name="partner_id" readonly="state in ('done', 'cancelled')"/>
+                            <field name="client_phone" widget="phone"/>
+                            <field name="client_email" widget="email"/>
+                        </group>
+                        <group/>
+                    </group>
+                    <notebook>
+                        <page string="Notas" name="notes">
+                            <field name="notes" placeholder="Observaciones o requerimientos especiales..." readonly="state in ('done', 'cancelled')"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- KANBAN VIEW -->
+    <record id="innatum_agenda_turno_view_kanban" model="ir.ui.view">
+        <field name="name">innatum.agenda.turno.kanban</field>
+        <field name="model">innatum.agenda.turno</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column" quick_create="0"
+                    records_draggable="1" group_create="false" group_delete="false" group_edit="false">
+                <field name="name"/>
+                <field name="state"/>
+                <field name="partner_id"/>
+                <field name="professional_id"/>
+                <field name="servicio_id"/>
+                <field name="servicio_ids"/>
+                <field name="date_start"/>
+                <field name="duration"/>
+                <field name="client_phone"/>
+                <progressbar field="state" colors='{"available": "success", "reserved": "warning", "confirmed": "info", "done": "muted", "cancelled": "danger"}'/>
+                <templates>
+                    <t t-name="card">
+                        <!-- Header con hora destacada -->
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <strong class="text-primary" style="font-size: 15px;">
+                                <i class="fa fa-clock-o me-1"/>
+                                <field name="date_start" widget="datetime" options="{'format': 'HH:mm'}"/>
+                            </strong>
+                            <span class="badge rounded-pill"
+                                  t-attf-class="badge rounded-pill #{record.state.raw_value == 'available' ? 'text-bg-success' : record.state.raw_value == 'reserved' ? 'text-bg-warning' : record.state.raw_value == 'confirmed' ? 'text-bg-info' : record.state.raw_value == 'done' ? 'text-bg-secondary' : 'text-bg-danger'}">
+                                <field name="state"/>
+                            </span>
+                        </div>
+
+                        <!-- Referencia -->
+                        <div class="text-muted mb-1" style="font-size: 11px;">
+                            <field name="name"/>
+                        </div>
+
+                        <!-- Fecha completa -->
+                        <div class="mb-2" style="font-size: 12px;">
+                            <i class="fa fa-calendar me-1 text-muted"/>
+                            <field name="date_start" widget="date"/>
+                            <span class="text-muted ms-1">
+                                (<field name="duration"/> min)
+                            </span>
+                        </div>
+
+                        <!-- Cliente -->
+                        <div t-if="record.partner_id.value" class="mb-1">
+                            <div class="d-flex align-items-center gap-1" style="font-size: 13px;">
+                                <i class="fa fa-user text-primary"/>
+                                <strong><field name="partner_id"/></strong>
+                            </div>
+                            <div t-if="record.client_phone.value" class="text-muted" style="font-size: 11px; margin-left: 18px;">
+                                <i class="fa fa-mobile me-1"/>
+                                <field name="client_phone"/>
+                            </div>
+                        </div>
+                        <div t-else="" class="text-muted fst-italic mb-1" style="font-size: 12px;">
+                            <i class="fa fa-user-plus me-1"/>Sin cliente asignado
+                        </div>
+
+                        <!-- Profesional y Servicio -->
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2" style="border-top: 1px solid #f0f0f0; font-size: 11px;">
+                            <span class="text-muted">
+                                <field name="professional_id" widget="many2one_avatar_employee"/>
+                            </span>
+                            <span t-if="record.servicio_id.value" class="badge text-bg-light">
+                                <field name="servicio_id"/>
+                            </span>
+                            <span t-elif="record.servicio_ids.raw_value.length > 0" class="badge text-bg-light">
+                                <field name="servicio_ids" widget="many2many_tags"/>
+                            </span>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- CALENDAR VIEW -->
+    <record id="innatum_agenda_turno_view_calendar" model="ir.ui.view">
+        <field name="name">innatum.agenda.turno.calendar</field>
+        <field name="model">innatum.agenda.turno</field>
+        <field name="arch" type="xml">
+            <calendar string="Turnos" date_start="date_start" date_stop="date_end" color="state" mode="week" event_open_popup="1" quick_create="0">
+                <field name="name"/>
+                <field name="professional_id" widget="many2one_avatar_employee" filters="1"/>
+                <field name="partner_id"/>
+                <field name="servicio_id"/>
+                <field name="state"/>
+            </calendar>
+        </field>
+    </record>
+
+    <!-- SEARCH VIEW -->
+    <record id="innatum_agenda_turno_view_search" model="ir.ui.view">
+        <field name="name">innatum.agenda.turno.search</field>
+        <field name="model">innatum.agenda.turno</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Turnos">
+                <field name="name"/>
+                <field name="professional_id"/>
+                <field name="partner_id"/>
+                <field name="servicio_id"/>
+                <filter name="available" string="Disponibles" domain="[('state', '=', 'available')]"/>
+                <filter name="reserved" string="Reservados" domain="[('state', '=', 'reserved')]"/>
+                <filter name="confirmed" string="Confirmados" domain="[('state', '=', 'confirmed')]"/>
+                <filter name="done" string="Finalizados" domain="[('state', '=', 'done')]"/>
+                <separator/>
+                <filter name="today" string="Hoy" domain="[('date_start', '&gt;=', datetime.datetime.combine(context_today(), datetime.time(0,0,0))), ('date_start', '&lt;', datetime.datetime.combine(context_today() + datetime.timedelta(days=1), datetime.time(0,0,0)))]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter name="group_professional" string="Profesional" context="{'group_by': 'professional_id'}"/>
+                    <filter name="group_servicio" string="Servicio" context="{'group_by': 'servicio_id'}"/>
+                    <filter name="group_state" string="Estado" context="{'group_by': 'state'}"/>
+                    <filter name="group_date" string="Fecha" context="{'group_by': 'date_start:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ACTION -->
+    <record id="innatum_agenda_turno_action" model="ir.actions.act_window">
+        <field name="name">Turnos</field>
+        <field name="res_model">innatum.agenda.turno</field>
+        <field name="view_mode">kanban,list,calendar,form</field>
+        <field name="search_view_id" ref="innatum_agenda_turno_view_search"/>
+        <field name="context">{'search_default_today': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay turnos registrados
+            </p>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="wizard_crear_producto_form" model="ir.ui.view">
+        <field name="name">innatum.agenda.facturacion.wizard.crear_producto.form</field>
+        <field name="model">innatum.agenda.facturacion.wizard.crear_producto</field>
+        <field name="arch" type="xml">
+            <form string="Crear Producto de Facturación">
+                <group>
+                    <field name="servicio_id" invisible="1"/>
+                    <field name="servicio_name"/>
+                    <field name="precio" widget="monetary"/>
+                </group>
+                <footer>
+                    <button name="action_confirmar" type="object"
+                            string="Crear Producto" class="btn-primary"/>
+                    <button special="cancel" string="Cancelar" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

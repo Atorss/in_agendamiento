@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- Top Menu -->
+    <menuitem id="menu_ai_assistant_root"
+              name="AI Assistant"
+              web_icon="innatum_ai,static/description/icon.svg"
+              sequence="99"/>
+
+    <!-- Configuration Menu (first so admin configures provider before chatting) -->
+    <menuitem id="menu_ai_config"
+              name="Configuración"
+              parent="menu_ai_assistant_root"
+              sequence="1"
+              groups="base.group_system,innatum_ai.group_ai_admin"/>
+
+    <menuitem id="menu_ai_providers"
+              name="Proveedores"
+              parent="menu_ai_config"
+              action="action_ai_provider"
+              sequence="1"/>
+
+    <menuitem id="menu_ai_tools"
+              name="Herramientas"
+              parent="menu_ai_config"
+              action="action_ai_tool"
+              sequence="2"/>
+
+    <menuitem id="menu_ai_data_dict"
+              name="Diccionario de Datos"
+              parent="menu_ai_config"
+              action="action_ai_data_dict"
+              sequence="3"/>
+
+    <menuitem id="menu_ai_usage_log"
+              name="Uso / Costos"
+              parent="menu_ai_assistant_root"
+              action="action_ai_usage_log"
+              sequence="5"
+              groups="base.group_system,innatum_ai.group_ai_admin"/>
+
+</odoo>

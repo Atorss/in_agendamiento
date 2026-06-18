@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Form simplificado de res.company para "Administración → Empresa".
+         Muestra solo los campos relevantes para identidad y facturación.
+         Es una vista primaria con mayor prioridad para que la abra la action
+         dedicada, sin afectar el form estándar de la empresa. -->
+    <record id="innatum_agenda_admin_empresa_form" model="ir.ui.view">
+        <field name="name">res.company.empresa.form.innatum.agenda.admin</field>
+        <field name="model">res.company</field>
+        <field name="mode">primary</field>
+        <field name="priority">1</field>
+        <field name="groups_id" eval="[(6, 0, [ref('innatum_agenda_core.innatum_agenda_group_admin')])]"/>
+        <field name="arch" type="xml">
+            <form string="Empresa" duplicate="false" create="false" edit="true" delete="false">
+                <sheet>
+                    <div class="oe_button_box" name="button_box"/>
+                    <field name="logo" widget="image" class="oe_avatar"
+                           options="{'preview_image': 'logo'}"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nombre comercial" required="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Identificación Fiscal">
+                            <field name="vat" string="RUC"/>
+                            <field name="company_registry" string="Razón Social"/>
+                        </group>
+                        <group string="Contacto">
+                            <field name="phone" widget="phone"/>
+                            <field name="email" widget="email"/>
+                            <field name="website" widget="url"/>
+                        </group>
+                    </group>
+                    <group string="Dirección">
+                        <group>
+                            <field name="street" placeholder="Calle principal y número"/>
+                            <field name="street2" placeholder="Calle secundaria / referencia"/>
+                            <field name="city" placeholder="Ciudad"/>
+                        </group>
+                        <group>
+                            <field name="zip" placeholder="Código postal"/>
+                            <field name="country_id"
+                                   options="{'no_create': True, 'no_create_edit': True, 'no_open': True}"/>
+                            <field name="state_id"
+                                   options="{'no_create': True, 'no_create_edit': True, 'no_open': True}"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Server action: abre directamente la empresa del usuario logueado.
+         La estabilidad del form simplificado al refrescar está garantizada
+         por la vista (priority=1 + groups_id=Admin de Agenda) — siempre
+         gana la selección por defecto para usuarios de ese grupo. -->
+    <record id="innatum_agenda_admin_empresa_action" model="ir.actions.server">
+        <field name="name">Empresa</field>
+        <field name="model_id" ref="base.model_res_company"/>
+        <field name="state">code</field>
+        <field name="code">
+action = {
+    'type': 'ir.actions.act_window',
+    'name': 'Empresa',
+    'res_model': 'res.company',
+    'view_mode': 'form',
+    'res_id': env.company.id,
+    'target': 'current',
+    'context': {
+        'create': False,
+        'edit': True,
+        'delete': False,
+        'duplicate': False,
+        'form_view_initial_mode': 'edit',
+    },
+}
+        </field>
+    </record>
+
+</odoo>

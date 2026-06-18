@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================ -->
+    <!-- FORMULARIO DE AGENDAMIENTO                                    -->
+    <!-- ============================================================ -->
+    <template id="appointment_form_template" name="Reservar Turno">
+        <t t-call="website.layout">
+            <div id="wrap" t-attf-class="inmed-appointment-page vertical-#{vertical or 'generic'}">
+
+                <!-- Header -->
+                <section class="inmed-header">
+                    <div class="container">
+                        <h1>Reservar Turno</h1>
+                        <p>Seleccione su servicio, profesional y horario disponible</p>
+                    </div>
+                </section>
+
+                <!-- Formulario -->
+                <section class="container py-4">
+                    <div class="inmed-form-card">
+                        <form action="/citas/submit" method="post" id="appointment_form">
+                            <input type="hidden" name="csrf_token"
+                                   t-att-value="request.csrf_token()"/>
+                            <input type="hidden" id="turno_id" name="turno_id"/>
+
+                            <!-- ===== PASO 1: Selección de turno ===== -->
+                            <div class="inmed-section-divider">
+                                <h3>1. Seleccione su Turno</h3>
+                            </div>
+
+                            <div class="inmed-form-grid">
+                                <!-- Servicio -->
+                                <div class="inmed-form-group">
+                                    <label for="servicio_id" class="inmed-label">
+                                        Servicio <span class="required">*</span>
+                                    </label>
+                                    <select class="inmed-select" id="servicio_id"
+                                            name="servicio_id" required="required">
+                                        <option value="">Seleccione un servicio...</option>
+                                        <t t-foreach="servicios" t-as="s">
+                                            <option t-att-value="s.id">
+                                                <t t-out="s.name"/>
+                                            </option>
+                                        </t>
+                                    </select>
+                                </div>
+
+                                <!-- Profesional -->
+                                <div class="inmed-form-group">
+                                    <label for="professional_id" class="inmed-label">
+                                        Profesional <span class="required">*</span>
+                                    </label>
+                                    <select class="inmed-select" id="professional_id"
+                                            name="professional_id" required="required" disabled="disabled">
+                                        <option value="">Primero seleccione servicio</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="inmed-form-grid">
+                                <!-- Fecha -->
+                                <div class="inmed-form-group">
+                                    <label for="fecha" class="inmed-label">
+                                        Fecha <span class="required">*</span>
+                                    </label>
+                                    <select class="inmed-select" id="fecha"
+                                            name="fecha" required="required" disabled="disabled">
+                                        <option value="">Primero seleccione profesional</option>
+                                    </select>
+                                </div>
+
+                                <!-- Horario -->
+                                <div class="inmed-form-group">
+                                    <label for="horario" class="inmed-label">
+                                        Horario <span class="required">*</span>
+                                    </label>
+                                    <select class="inmed-select" id="horario"
+                                            name="horario" required="required" disabled="disabled">
+                                        <option value="">Primero seleccione fecha</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Resumen de selección -->
+                            <div id="selection_summary" class="inmed-info-box" style="display: none;">
+                                <strong>Cita seleccionada:</strong>
+                                <span id="summary_text"></span>
+                            </div>
+
+                            <!-- ===== PASO 2: Datos del cliente ===== -->
+                            <div class="inmed-section-divider">
+                                <h3>2. Datos del Cliente</h3>
+                            </div>
+
+                            <div class="inmed-form-grid">
+                                <div class="inmed-form-group">
+                                    <label for="vat" class="inmed-label">
+                                        Cédula / Identificación <span class="required">*</span>
+                                    </label>
+                                    <input type="text" class="inmed-input" id="vat"
+                                           name="vat" required="required"
+                                           placeholder="Ingrese su número de identificación"
+                                           maxlength="13"/>
+                                    <div id="vat_message" class="inmed-field-message"></div>
+                                </div>
+                                <div class="inmed-form-group">
+                                    <label for="name" class="inmed-label">
+                                        Nombre Completo <span class="required">*</span>
+                                    </label>
+                                    <input type="text" class="inmed-input" id="name"
+                                           name="name" required="required"
+                                           placeholder="Nombres y Apellidos"/>
+                                </div>
+                            </div>
+
+                            <div class="inmed-form-grid">
+                                <div class="inmed-form-group">
+                                    <label for="phone" class="inmed-label">
+                                        Celular <span class="required">*</span>
+                                    </label>
+                                    <input type="tel" class="inmed-input" id="phone"
+                                           name="phone" required="required"
+                                           placeholder="09XXXXXXXX"/>
+                                </div>
+                                <div class="inmed-form-group">
+                                    <label for="email" class="inmed-label">
+                                        Correo Electrónico
+                                    </label>
+                                    <input type="email" class="inmed-input" id="email"
+                                           name="email" placeholder="correo@ejemplo.com"/>
+                                </div>
+                            </div>
+
+                            <div id="new_patient_fields" style="display: none;">
+                                <div class="inmed-form-grid">
+                                    <div class="inmed-form-group">
+                                        <label for="country_id" class="inmed-label">
+                                            País
+                                        </label>
+                                        <select class="inmed-select" id="country_id" name="country_id">
+                                            <option value="">Seleccione un país...</option>
+                                            <t t-foreach="countries" t-as="c">
+                                                <option t-att-value="c.id"
+                                                        t-att-selected="c.id == default_country_id">
+                                                    <t t-out="c.name"/>
+                                                </option>
+                                            </t>
+                                        </select>
+                                    </div>
+                                    <div class="inmed-form-group">
+                                        <label for="state_id" class="inmed-label">
+                                            Provincia
+                                        </label>
+                                        <select class="inmed-select" id="state_id" name="state_id"
+                                                disabled="disabled">
+                                            <option value="">Primero seleccione país</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="inmed-form-grid">
+                                    <div class="inmed-form-group">
+                                        <label for="city" class="inmed-label">Ciudad</label>
+                                        <input type="text" class="inmed-input" id="city"
+                                               name="city" placeholder="Ciudad"/>
+                                    </div>
+                                    <div class="inmed-form-group">
+                                        <label for="street" class="inmed-label">Dirección</label>
+                                        <input type="text" class="inmed-input" id="street"
+                                               name="street" placeholder="Calle principal, número"/>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="inmed-form-group">
+                                <label for="notes" class="inmed-label">
+                                    Observaciones
+                                </label>
+                                <textarea class="inmed-input" id="notes" name="notes"
+                                          rows="3"
+                                          placeholder="Alguna observación o requerimiento especial (opcional)"></textarea>
+                            </div>
+
+                            <!-- Mensajes -->
+                            <div id="form_messages" class="inmed-field-message"></div>
+
+                            <!-- Botón enviar -->
+                            <div class="text-center mt-4">
+                                <button type="submit" id="submit_btn"
+                                        class="inmed-btn-submit" disabled="disabled">
+                                    <i class="fa fa-calendar-check-o me-2"/>
+                                    Reservar Turno
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
+
+    <!-- ============================================================ -->
+    <!-- CONFIRMACIÓN EXITOSA                                          -->
+    <!-- ============================================================ -->
+    <template id="appointment_success_template" name="Turno Reservado">
+        <t t-call="website.layout">
+            <div id="wrap" t-attf-class="inmed-appointment-page vertical-#{vertical or 'generic'}">
+                <section class="container py-5">
+                    <div class="inmed-form-card text-center">
+                        <div style="font-size: 64px; color: #28a745; margin-bottom: 16px;">
+                            <i class="fa fa-check-circle"/>
+                        </div>
+                        <h2>Turno Reservado Exitosamente</h2>
+                        <p class="text-muted mb-4">
+                            Su solicitud ha sido registrada y está pendiente de confirmación.
+                        </p>
+                        <div class="inmed-info-box text-start">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr>
+                                    <td><strong>Referencia:</strong></td>
+                                    <td><span t-out="turno.name"/></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Cliente:</strong></td>
+                                    <td><span t-out="cliente.name"/></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Servicio:</strong></td>
+                                    <td><span t-out="turno.servicio_id.name"/></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Profesional:</strong></td>
+                                    <td><span t-out="turno.professional_id.name"/></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Fecha y Hora:</strong></td>
+                                    <td><span t-field="turno.date_start"
+                                              t-options='{"format": "dd/MM/yyyy HH:mm"}'/></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Estado:</strong></td>
+                                    <td>
+                                        <span class="badge text-bg-warning">
+                                            Pendiente de Confirmación
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <p class="mt-3 text-muted">
+                            Recibirá una notificación cuando su turno sea confirmado.
+                        </p>
+                        <a href="/citas" class="inmed-btn-submit mt-3"
+                           style="display: inline-block; text-decoration: none;">
+                            <i class="fa fa-arrow-left me-2"/>
+                            Reservar otro turno
+                        </a>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
+
+    <!-- ============================================================ -->
+    <!-- ERROR                                                         -->
+    <!-- ============================================================ -->
+    <template id="appointment_error_template" name="Error al Reservar">
+        <t t-call="website.layout">
+            <div id="wrap" t-attf-class="inmed-appointment-page vertical-#{vertical or 'generic'}">
+                <section class="container py-5">
+                    <div class="inmed-form-card text-center">
+                        <div style="font-size: 64px; color: #dc3545; margin-bottom: 16px;">
+                            <i class="fa fa-times-circle"/>
+                        </div>
+                        <h2>No se pudo reservar el turno</h2>
+                        <p class="text-muted mb-4" t-out="error"/>
+                        <a href="/citas" class="inmed-btn-submit mt-3"
+                           style="display: inline-block; text-decoration: none;">
+                            <i class="fa fa-arrow-left me-2"/>
+                            Intentar nuevamente
+                        </a>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
+
+</odoo>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Para usuarios con el grupo técnico "Puede facturar", esconde
+        las acciones específicas de contabilidad ecuatoriana
+        (retenciones y reembolsos): el doctor solo factura, el resto
+        es trabajo del área contable.
+
+        El atributo groups="..." en cada xpath hace que la modificación
+        SOLO se aplique a usuarios de ese grupo. Contadores sin ese
+        grupo siguen viendo todo normalmente.
+    -->
+    <record id="account_move_form_hide_withhold_for_doctor" model="ir.ui.view">
+        <field name="name">account.move.form.hide.withhold.reimbursement.for.doctor</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="l10n_ec_edi.account_move_form_invoice_and_withhold_view"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//button[@name='l10n_ec_add_withhold']"
+                   position="attributes"
+                   groups="innatum_agenda_facturacion.innatum_agenda_group_puede_facturar">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <xpath expr="//button[@name='l10n_ec_action_send_withhold']"
+                   position="attributes"
+                   groups="innatum_agenda_facturacion.innatum_agenda_group_puede_facturar">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <xpath expr="//button[@name='l10n_ec_action_view_withholds']"
+                   position="attributes"
+                   groups="innatum_agenda_facturacion.innatum_agenda_group_puede_facturar">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <xpath expr="//button[@name='l10n_ec_action_view_invoices']"
+                   position="attributes"
+                   groups="innatum_agenda_facturacion.innatum_agenda_group_puede_facturar">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <xpath expr="//page[@name='client_reimbursement_data']"
+                   position="attributes"
+                   groups="innatum_agenda_facturacion.innatum_agenda_group_puede_facturar">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>
