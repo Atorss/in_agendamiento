@@ -3,3 +3,7 @@ from . import test_vertical_template
 from . import test_business_profile
 from . import test_ai_session
 from . import test_whatsapp_webhook
+from . import test_prompt_composer
+from . import test_business_knowledge
+from . import test_wamid_dedup
+from . import test_match_servicio

@@ -8,12 +8,22 @@ WhatsApp) en lugar de `innatum.ai.conversation` (sesión interna del ERP).
 import json
 import logging
 import re
+import unicodedata
 from odoo import api, models
 from odoo.exceptions import UserError
 
 from .cedula_validator import validate_ec_cedula, extract_cedula
 
 _logger = logging.getLogger(__name__)
+
+
+def _norm_text(s):
+    """Normaliza para comparar: sin acentos, minúsculas, solo alfanum+espacios."""
+    s = unicodedata.normalize('NFKD', s or '')
+    s = ''.join(c for c in s if not unicodedata.combining(c))
+    s = s.lower()
+    s = ''.join(ch if (ch.isalnum() or ch.isspace()) else ' ' for ch in s)
+    return ' '.join(s.split())
 
 MAX_TOOL_ITERATIONS = 5
 DEFAULT_HISTORY_WINDOW = 10  # mensajes previos a enviar al LLM
@@ -51,7 +61,7 @@ class WhatsappAgent(models.AbstractModel):
     # -------------------------------------------------------------------------
 
     @api.model
-    def process_message(self, session, text, message_type='text', media_id=None):
+    def process_message(self, session, text, message_type='text', media_id=None, wamid=None):
         """Procesa un mensaje entrante y devuelve la respuesta para enviar.
 
         Returns:
@@ -60,6 +70,30 @@ class WhatsappAgent(models.AbstractModel):
         if not text and not media_id:
             return {'response_text': '', 'session_state': session.state,
                     'skip_send': True}
+
+        # ====================================================================
+        # IDEMPOTENCIA POR wamid: Meta a veces reentrega el MISMO mensaje
+        # (reintentos del webhook). Cada mensaje trae un wamid único y global;
+        # si ya lo procesamos antes, es un duplicado → no reprocesar ni enviar.
+        # Comparamos por wamid (no por texto) para no silenciar mensajes
+        # legítimos idénticos enviados en momentos distintos (ej. "Hola" hoy
+        # y "Hola" mañana en la misma sesión).
+        # ====================================================================
+        if wamid:
+            dup = self.env['innatum.ai.session.message'].sudo().search_count([
+                ('wamid', '=', wamid),
+            ])
+            if dup:
+                _logger.info(
+                    'wamid dedup: %s ya procesado (sesión=%s, wa_from=%s)',
+                    wamid, session.id, session.wa_from,
+                )
+                return {
+                    'response_text': '',
+                    'session_state': session.state,
+                    'skip_send': True,
+                    'fast_path': 'dup_wamid',
+                }
 
         # ====================================================================
         # CAPAS ANTI-ABUSO (cooldown → rate limit → pre-filtros). Ordenadas
@@ -71,8 +105,13 @@ class WhatsappAgent(models.AbstractModel):
             session.wa_from, session.company_id,
         )
 
-        # Persistir mensaje entrante (siempre, para audit)
-        session.append_message(role='user', content=text or f'[{message_type}:{media_id}]')
+        # Persistir mensaje entrante (siempre, para audit). Guardamos el wamid
+        # para que una eventual reentrega del mismo mensaje se descarte arriba.
+        session.append_message(
+            role='user',
+            content=text or f'[{message_type}:{media_id}]',
+            wamid=wamid,
+        )
 
         is_button = bool(text and _RE_ANY_BUTTON_ID.match(text.strip()))
 
@@ -173,7 +212,8 @@ class WhatsappAgent(models.AbstractModel):
         # Si el cliente está en menu_principal/confirmada/pendiente_pago y
         # vuelve a saludar, no le respondemos con LLM genérico ("¡Hola de
         # nuevo!"); le repetimos el menú con sus citas activas.
-        if session.state in ('menu_principal', 'confirmada', 'pendiente_pago'):
+        if session.state in ('menu_principal', 'eligiendo_servicio',
+                             'confirmada', 'pendiente_pago'):
             if self._is_greeting(text):
                 partner = session.partner_id
                 if partner:
@@ -182,8 +222,9 @@ class WhatsappAgent(models.AbstractModel):
         # KEYWORDS en menu_principal: si el cliente escribe texto libre que
         # contiene una palabra clave del menú, lo enrutamos al handler
         # determinístico (evita que el LLM invente servicios ante ruido como
-        # "Polonio").
-        if session.state == 'menu_principal':
+        # "Polonio"). También aplica mientras elige servicio, para que pueda
+        # escaparse a otra acción sin quedar atrapado.
+        if session.state in ('menu_principal', 'eligiendo_servicio'):
             kw = self._match_menu_keyword(text)
             if kw == 'agendar':
                 return self._start_agendar_flow(session)
@@ -193,6 +234,23 @@ class WhatsappAgent(models.AbstractModel):
                 return self._show_my_appointments(session, mode='reagendar')
             if kw == 'cancelar':
                 return self._show_my_appointments(session, mode='cancelar')
+
+        # TEXTO LIBRE QUE NOMBRA UN SERVICIO → enrutar como si el cliente
+        # hubiera tocado el botón `servicio:CODE`. Esto garantiza que se setee
+        # `current_servicio_code` (clave para reservar en turnos multi-servicio)
+        # igual que en el fast-path de botones, en vez de delegar al LLM (que no
+        # persiste ese estado). Solo se aplica al elegir servicio o desde el
+        # menú; si el texto es ambiguo o no matchea, cae al LLM.
+        if session.state in ('menu_principal', 'eligiendo_servicio'):
+            servicio_code = self._match_servicio(text, session)
+            if servicio_code:
+                _logger.info(
+                    'Texto→servicio: session=%s code=%s (de "%s")',
+                    session.id, servicio_code, (text or '')[:40],
+                )
+                return self._handle_known_button_id(
+                    'servicio:%s' % servicio_code, session,
+                )
 
         # En estados post-reserva (confirmada / pendiente_pago) atendemos
         # también keywords del menú: el cliente puede querer info/cancelar/
@@ -325,6 +383,13 @@ class WhatsappAgent(models.AbstractModel):
                 tool_name = tb.get('name')
                 tool_input = tb.get('input') or {}
                 tool_id = tb.get('id')
+
+                # Red de seguridad: si el LLM resuelve un servicio por texto y
+                # llama a una tool con `servicio_code`, persistimos ese código
+                # en la sesión (igual que el fast-path de botones). Evita que la
+                # reserva de un turno multi-servicio falle por falta de contexto.
+                if isinstance(tool_input, dict) and tool_input.get('servicio_code'):
+                    session.current_servicio_code = tool_input['servicio_code']
 
                 tool = available_tools.get(tool_name)
                 if not tool:
@@ -862,7 +927,10 @@ class WhatsappAgent(models.AbstractModel):
           - Mensaje sin caracteres alfanuméricos (solo emojis/símbolos)
           - Muy corto (< PRE_FILTER_MIN_CHARS)
           - Muy largo (> PRE_FILTER_MAX_CHARS)
-          - Idéntico al último mensaje del cliente (eco) → silencio
+
+        NOTA: la deduplicación de mensajes reentregados por Meta se hace en
+        `process_message` comparando el `wamid` (clave de idempotencia única),
+        no por igualdad de texto, para no silenciar saludos legítimos repetidos.
         """
         if text is None:
             return None
@@ -923,27 +991,6 @@ class WhatsappAgent(models.AbstractModel):
                 'meta_payload': None,
                 'fast_path': 'prefilter_too_long',
             }
-        # 5) Eco: ¿el cliente envió el MISMO mensaje que el anterior?
-        # Buscamos el penúltimo mensaje del cliente (porque acabamos de
-        # persistir el actual). Si es idéntico, silencio.
-        Msg = self.env['innatum.ai.session.message']
-        prev_user = Msg.search([
-            ('session_id', '=', session.id),
-            ('role', '=', 'user'),
-        ], order='create_date desc, id desc', limit=2)
-        if len(prev_user) == 2 and prev_user[1].content == clean:
-            _logger.info(
-                'prefilter: echo from session=%s wa_from=%s',
-                session.id, session.wa_from,
-            )
-            return {
-                'response_text': '',
-                'session_state': session.state,
-                'tool_calls': [],
-                'meta_payload': None,
-                'skip_send': True,
-                'fast_path': 'prefilter_echo',
-            }
         return None
 
     def _is_greeting(self, text):
@@ -994,6 +1041,39 @@ class WhatsappAgent(models.AbstractModel):
         if any(k in t for k in ('info', 'mis citas', 'mi cita',
                                  'mis turnos', 'mi turno', 'consultar')):
             return 'info'
+        return None
+
+    def _match_servicio(self, text, session):
+        """Resuelve texto libre al código de un servicio del tenant.
+
+        Permite enrutar "Ortodoncia" igual que el botón `servicio:ORT`,
+        garantizando que se setee `current_servicio_code`. Es conservador:
+        - match exacto por código o nombre → decisión inmediata.
+        - nombre contenido en el texto ("quiero ortodoncia") o texto contenido
+          en el nombre ("ortodoncia" ⊂ "Ortodoncia infantil") → candidato.
+        - si hay 0 o >1 candidatos distintos → None (el LLM preguntará).
+        """
+        if not text:
+            return None
+        t = _norm_text(text)
+        if not t or len(t) > 60:
+            return None
+        Primitives = self.env['innatum.agenda.scheduling.primitives']
+        data = Primitives.list_services(company=session.company_id)
+        servicios = data.get('especialidades') or []
+        matches = set()
+        for s in servicios:
+            code = s.get('code') or ''
+            n_code = _norm_text(code)
+            n_name = _norm_text(s.get('name') or '')
+            if not (n_code or n_name):
+                continue
+            if t == n_code or t == n_name:
+                return code  # match exacto
+            if n_name and (n_name in t or (len(t) >= 4 and t in n_name)):
+                matches.add(code)
+        if len(matches) == 1:
+            return next(iter(matches))
         return None
 
     def _ask_who_is_patient(self, session, turno):
@@ -1251,6 +1331,8 @@ class WhatsappAgent(models.AbstractModel):
 
     def _start_agendar_flow(self, session):
         """Cliente eligió 'Agendar' → mostrar lista de servicios."""
+        if session.state != 'eligiendo_servicio':
+            session.action_set_state('eligiendo_servicio')
         Primitives = self.env['innatum.agenda.scheduling.primitives']
         result = Primitives.list_services(company=session.company_id)
         tool_summary = {
@@ -1562,7 +1644,9 @@ class WhatsappAgent(models.AbstractModel):
                         {
                             'id': f"servicio:{i['code']}",
                             'title': i['name'],
-                            'description': '',
+                            # El precio (si está configurado) cabe en la
+                            # descripción de la fila (Meta permite ~72 chars).
+                            'description': i.get('precio_label', ''),
                         }
                         for i in items[:10]
                     ],

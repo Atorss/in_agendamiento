@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Innatum AI Core',
-    'version': '18.0.0.3.0',
+    'version': '18.0.0.6.0',
     'category': 'Services',
     'summary': 'Base multi-tenant para agente WhatsApp (Business Profile, Sesiones, Templates, Prompts, RDCM)',
     'description': """
@@ -32,9 +32,11 @@ Provee:
         'security/innatum_ai_core_rules.xml',
         'data/vertical_template_data.xml',
         'data/ai_prompt_data.xml',
+        'data/ai_tools_knowledge.xml',
         'views/res_company_views.xml',
         'views/vertical_template_views.xml',
         'views/business_profile_views.xml',
+        'views/business_knowledge_views.xml',
         'views/ai_session_views.xml',
         'views/ai_prompt_views.xml',
         'views/innatum_ai_core_menus.xml',

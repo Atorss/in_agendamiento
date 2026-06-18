@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Tool: buscar_conocimiento -->
+        <record id="tool_buscar_conocimiento" model="innatum.ai.tool">
+            <field name="name">buscar_conocimiento</field>
+            <field name="display_name_field">Buscar conocimiento</field>
+            <field name="description">Busca información del negocio que NO es de agenda: ubicación detallada, parqueadero, formas de pago, seguros que acepta, promociones, políticas, requisitos, etc. Úsala cuando el cliente pregunte algo que no se resuelve con consultar_servicios/horarios/reservar. Devuelve {total, resultados:[{tema, respuesta}]} o {resultados:[], message}. Usa el contenido de 'respuesta' como información y respóndele al cliente con tu propio tono — NO la copies literal. Si devuelve resultados vacíos, dilo con naturalidad y ofrece derivar a una persona; NUNCA inventes el dato.</field>
+            <field name="tool_type">wa_agent</field>
+            <field name="sequence">80</field>
+            <field name="active" eval="True"/>
+            <field name="custom_input_schema">{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "La pregunta o tema del cliente, ej. 'parqueadero', 'formas de pago', 'aceptan seguro'."
+    }
+  },
+  "required": ["query"]
+}</field>
+            <field name="python_method_path">innatum.business.knowledge:search_knowledge</field>
+        </record>
+
+    </data>
+</odoo>

@@ -11,6 +11,7 @@ SESSION_STATES = [
     ('esperando_cedula', 'Esperando cédula (usuario nuevo)'),
     ('esperando_nombre', 'Esperando nombre completo'),
     ('menu_principal', 'En menú principal'),
+    ('eligiendo_servicio', 'Eligiendo servicio'),
     # Sub-flujo: agendar para un tercero
     ('confirmando_paciente', '¿Reserva para él o para otra persona?'),
     ('esperando_cedula_tercero', 'Esperando cédula del tercero'),
@@ -111,7 +112,7 @@ class AiSession(models.Model):
             raise UserError('Estado inválido: %s' % new_state)
         self.state = new_state
 
-    def append_message(self, role, content, tokens_in=0, tokens_out=0, cost_usd=0.0):
+    def append_message(self, role, content, tokens_in=0, tokens_out=0, cost_usd=0.0, wamid=None):
         self.ensure_one()
         return self.env['innatum.ai.session.message'].create({
             'session_id': self.id,
@@ -120,6 +121,7 @@ class AiSession(models.Model):
             'tokens_in': tokens_in,
             'tokens_out': tokens_out,
             'cost_usd': cost_usd,
+            'wamid': wamid or False,
         })
 
     @api.model
@@ -165,6 +167,13 @@ class AiSessionMessage(models.Model):
         ('tool', 'Tool'),
     ], required=True)
     content = fields.Text(required=True)
+    wamid = fields.Char(
+        string='WhatsApp Message ID',
+        index=True,
+        help='ID único del mensaje entrante de Meta (wamid). Clave de '
+             'idempotencia: si llega un mensaje con un wamid ya registrado, '
+             'es una reentrega del webhook y se descarta sin reprocesar.',
+    )
     tokens_in = fields.Integer(default=0)
     tokens_out = fields.Integer(default=0)
     cost_usd = fields.Float(default=0.0)

@@ -70,7 +70,7 @@ class InnatumAgendaTurno(models.Model):
                 raise ValidationError(_(
                     'El plan "%(plan)s" permite %(limite)d turnos por mes '
                     'para la empresa "%(company)s".\n'
-                    'Ya generaste %(count)d este mes y querés crear '
+                    'Ya generaste %(count)d este mes y quieres crear '
                     '%(new)d más.\n\n'
                     'Para aumentar este límite, contacta a Innatum para '
                     'cambiar de plan.',

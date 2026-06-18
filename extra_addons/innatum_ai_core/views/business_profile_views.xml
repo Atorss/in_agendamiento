@@ -75,17 +75,23 @@
                             </group>
                         </page>
 
-                        <page string="Horarios" name="page_hours">
-                            <group>
+                        <page string="Horarios y ubicación" name="page_hours">
+                            <group string="Horario de atención">
                                 <field name="business_hours"
                                        placeholder="Lun-Vie 9-18, Sab 9-13"/>
                             </group>
+                            <group string="Ubicación">
+                                <field name="google_maps_url"
+                                       placeholder="https://maps.google.com/..."
+                                       widget="url"/>
+                            </group>
                             <div class="alert alert-info" role="status">
                                 <i class="fa fa-info-circle"/>
-                                La zona horaria se configura en la compañía
-                                (Configuración → Empresa). La duración real
-                                de cada turno se define en cada Planificación
-                                de Horarios.
+                                La <b>dirección, teléfono y email</b> que el agente
+                                comparte se toman de la compañía (Configuración →
+                                Empresa) — manténlos actualizados ahí. La zona
+                                horaria también. La duración real de cada turno se
+                                define en cada Planificación de Horarios.
                             </div>
                         </page>
 
@@ -182,10 +188,20 @@
                             <field name="error_fallback_message"/>
                         </group>
                     </page>
-                    <page string="Horarios">
-                        <group>
+                    <page string="Horarios y ubicación">
+                        <group string="Horario de atención">
                             <field name="business_hours"/>
                         </group>
+                        <group string="Ubicación">
+                            <field name="google_maps_url"
+                                   placeholder="https://maps.google.com/..."
+                                   widget="url"/>
+                        </group>
+                        <div class="alert alert-info" role="status">
+                            <i class="fa fa-info-circle"/>
+                            La dirección, teléfono y email que el agente comparte
+                            se toman de los datos de tu empresa.
+                        </div>
                     </page>
                     <page string="Reglas de agenda">
                         <group string="Anticipación">

@@ -11,3 +11,6 @@ access_innatum_ai_prompt_user,access.innatum.ai.prompt.user,model_innatum_ai_pro
 access_innatum_ai_prompt_admin,access.innatum.ai.prompt.admin,model_innatum_ai_prompt,base.group_system,1,1,1,1
 access_innatum_wa_throttle_user,access.innatum.wa.throttle.user,model_innatum_wa_throttle,base.group_user,1,1,1,0
 access_innatum_wa_throttle_admin,access.innatum.wa.throttle.admin,model_innatum_wa_throttle,base.group_system,1,1,1,1
+access_innatum_business_knowledge_user,access.innatum.business.knowledge.user,model_innatum_business_knowledge,base.group_user,1,0,0,0
+access_innatum_business_knowledge_tenant_admin,access.innatum.business.knowledge.tenant.admin,model_innatum_business_knowledge,innatum_agenda_core.innatum_agenda_group_admin,1,1,1,1
+access_innatum_business_knowledge_admin,access.innatum.business.knowledge.admin,model_innatum_business_knowledge,base.group_system,1,1,1,1

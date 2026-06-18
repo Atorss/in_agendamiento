@@ -117,6 +117,19 @@ class SchedulingPrimitives(models.AbstractModel):
     def _with_co(self, company):
         return self.with_company(self._resolve_company(company))
 
+    def _format_price(self, amount, company):
+        """Formatea un precio con la moneda de la company. Ej: '$25.00'.
+
+        Respeta la posición del símbolo (antes/después) de la moneda.
+        """
+        currency = company.currency_id
+        amount_str = '%.2f' % amount
+        if currency and currency.symbol:
+            if currency.position == 'after':
+                return '%s %s' % (amount_str, currency.symbol)
+            return '%s%s' % (currency.symbol, amount_str)
+        return amount_str
+
     # ------------------------------------------------------------------
     # Primitive 1: list_services
     # ------------------------------------------------------------------
@@ -135,6 +148,10 @@ class SchedulingPrimitives(models.AbstractModel):
         Turno = self._with_co(company).env['innatum.agenda.turno'].sudo()
         servicios = Servicio.search([('company_ids', 'in', company.id)])
 
+        # El campo `precio` lo aporta el módulo innatum_agenda_facturacion. Si
+        # no está instalado, simplemente no se reporta precio (no se inventa).
+        has_precio = 'precio' in Servicio._fields
+
         disponibles = []
         for s in servicios:
             tiene = Turno.search([
@@ -145,7 +162,14 @@ class SchedulingPrimitives(models.AbstractModel):
                 ('company_id', '=', company.id),
             ], limit=1)
             if tiene:
-                disponibles.append({'name': s.name, 'code': s.code})
+                item = {'name': s.name, 'code': s.code}
+                # Solo reportamos precio si está configurado (> 0). Un 0.0
+                # suele significar "sin precio cargado", no "gratis".
+                precio = s.precio if has_precio else 0.0
+                if precio and precio > 0:
+                    item['precio'] = precio
+                    item['precio_label'] = self._format_price(precio, company)
+                disponibles.append(item)
 
         if not disponibles:
             return {
@@ -558,7 +582,7 @@ class SchedulingPrimitives(models.AbstractModel):
                 return {
                     'error': (
                         'Este horario ofrece varios servicios. '
-                        f'Indica cuál querés reservar: {opciones}.'
+                        f'Indica cuál quieres reservar: {opciones}.'
                     ),
                 }
 

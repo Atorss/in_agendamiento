@@ -18,6 +18,12 @@
               action="action_business_profile"
               sequence="20"/>
 
+    <menuitem id="menu_innatum_ai_knowledge"
+              name="Conocimiento del Negocio"
+              parent="menu_innatum_ai_root"
+              action="action_business_knowledge"
+              sequence="30"/>
+
     <menuitem id="menu_innatum_ai_config"
               name="Configuración"
               parent="menu_innatum_ai_root"

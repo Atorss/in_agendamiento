@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_business_knowledge_list" model="ir.ui.view">
+        <field name="name">innatum.business.knowledge.list</field>
+        <field name="model">innatum.business.knowledge</field>
+        <field name="arch" type="xml">
+            <list string="Conocimiento del negocio" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="answer"/>
+                <field name="keywords" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="active" widget="boolean_toggle" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_business_knowledge_form" model="ir.ui.view">
+        <field name="name">innatum.business.knowledge.form</field>
+        <field name="model">innatum.business.knowledge</field>
+        <field name="arch" type="xml">
+            <form string="Conocimiento del negocio">
+                <sheet>
+                    <widget name="web_ribbon" title="Archivado" bg_color="bg-danger"
+                            invisible="active"/>
+                    <group>
+                        <field name="name"
+                               placeholder="¿Tienen parqueadero?"/>
+                        <field name="keywords"
+                               placeholder="estacionamiento, carro, auto"/>
+                        <field name="company_id" groups="base.group_multi_company"/>
+                        <field name="active" invisible="1"/>
+                    </group>
+                    <separator string="Respuesta"/>
+                    <field name="answer"
+                           placeholder="Sí, contamos con parqueadero gratuito para clientes en la parte posterior del edificio."/>
+                    <div class="alert alert-info" role="status">
+                        <i class="fa fa-info-circle"/>
+                        El agente NO copia esta respuesta literal: la usa como
+                        información y la reformula con su propio tono. Si el
+                        cliente pregunta algo que no está cargado aquí, el agente
+                        lo dice y no inventa.
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_business_knowledge_search" model="ir.ui.view">
+        <field name="name">innatum.business.knowledge.search</field>
+        <field name="model">innatum.business.knowledge</field>
+        <field name="arch" type="xml">
+            <search string="Buscar conocimiento">
+                <field name="name"/>
+                <field name="keywords"/>
+                <field name="answer"/>
+                <filter name="filter_active" string="Activos"
+                        domain="[('active', '=', True)]"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_business_knowledge" model="ir.actions.act_window">
+        <field name="name">Conocimiento del Negocio</field>
+        <field name="res_model">innatum.business.knowledge</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_business_knowledge_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Carga lo que el agente debe saber sobre tu negocio
+            </p>
+            <p>
+                Preguntas frecuentes y datos que no son de agenda: parqueadero,
+                formas de pago, seguros que aceptas, políticas, etc. El agente
+                los consulta cuando un cliente pregunta por ellos.
+            </p>
+        </field>
+    </record>
+
+</odoo>

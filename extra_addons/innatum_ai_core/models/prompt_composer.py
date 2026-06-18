@@ -64,6 +64,14 @@ class PromptComposer(models.AbstractModel):
         if ctx_lines:
             sections.append('## Contexto del negocio\n' + '\n'.join(ctx_lines))
 
+        # Ubicación y datos de contacto. Dirección/teléfono/email salen de la
+        # propia compañía (ya cargados en el provisioning); el enlace de Maps,
+        # del perfil. Esto permite responder "¿dónde quedan?" / "¿cuál es su
+        # teléfono?" sin inventar (ver global_base + RDCM).
+        contact = self._contact_section(session, profile)
+        if contact:
+            sections.append(contact)
+
         if capabilities_active:
             sections.append(
                 '## Capacidades activas\n' +
@@ -123,6 +131,61 @@ class PromptComposer(models.AbstractModel):
                 f'  "{welcome}"'
             )
         return '\n'.join(lines) if len(lines) > 1 else ''
+
+    @api.model
+    def _contact_section(self, session, profile):
+        """Ubicación y datos de contacto del negocio.
+
+        Fuente de verdad: res.company (dirección, teléfono, email), ya cargada
+        en el provisioning del tenant. El enlace de Google Maps viene del
+        business.profile (no existe en res.company). Se omite cualquier dato
+        vacío para no inducir al LLM a inventar.
+        """
+        company = session.company_id
+        if not company:
+            return ''
+
+        lines = []
+
+        # Dirección: ensamblamos las partes no vacías de res.company.
+        address_parts = [
+            company.street,
+            company.street2,
+            company.city,
+            company.state_id.name if company.state_id else None,
+            company.zip,
+            company.country_id.name if company.country_id else None,
+        ]
+        address = ', '.join(p.strip() for p in address_parts if p and p.strip())
+        if address:
+            lines.append(f'- Dirección: {address}')
+
+        maps_url = (profile.google_maps_url or '').strip() if profile else ''
+        if maps_url:
+            lines.append(f'- Cómo llegar (Google Maps): {maps_url}')
+
+        phone = (company.phone or '').strip()
+        if phone:
+            lines.append(f'- Teléfono: {phone}')
+
+        mobile = (getattr(company, 'mobile', '') or '').strip()
+        if mobile and mobile != phone:
+            lines.append(f'- Celular: {mobile}')
+
+        email = (company.email or '').strip()
+        if email:
+            lines.append(f'- Email: {email}')
+
+        if not lines:
+            return ''
+
+        return (
+            '## Ubicación y contacto\n'
+            'Usa estos datos para responder dónde queda el negocio o cómo '
+            'contactarlo. Si el cliente pregunta por un dato que NO está aquí, '
+            'dilo y ofrece derivar a una persona — no lo inventes.\n'
+            + '\n'.join(lines)
+        )
 
     @api.model
     def _greeting_rules(self, session):

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from . import vertical_template
 from . import business_profile
+from . import business_knowledge
 from . import res_company
 from . import ai_session
 from . import ai_tool_ext

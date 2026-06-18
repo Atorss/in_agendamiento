@@ -40,6 +40,7 @@ class WhatsappWebhookController(http.Controller):
         text = payload.get('text') or ''
         message_type = payload.get('message_type', 'text')
         media_id = payload.get('media_id') or ''
+        wamid = payload.get('wamid') or ''
 
         if not phone_number_id or not wa_from:
             return self._json(400, {'error': 'missing_required_fields'})
@@ -78,6 +79,7 @@ class WhatsappWebhookController(http.Controller):
                     text=text,
                     message_type=message_type,
                     media_id=media_id,
+                    wamid=wamid,
                 )
             except Exception:
                 _logger.exception(
@@ -89,7 +91,7 @@ class WhatsappWebhookController(http.Controller):
                     'error': 'agent_crash',
                 })
         else:
-            session.append_message(role='user', content=text)
+            session.append_message(role='user', content=text, wamid=wamid)
             response_text = 'echo: %s' % text
             session.append_message(role='assistant', content=response_text)
             result = {

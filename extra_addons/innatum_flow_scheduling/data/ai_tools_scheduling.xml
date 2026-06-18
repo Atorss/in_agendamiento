@@ -6,7 +6,7 @@
         <record id="tool_consultar_servicios" model="innatum.ai.tool">
             <field name="name">consultar_servicios</field>
             <field name="display_name_field">Consultar servicios</field>
-            <field name="description">Lista los servicios con turnos disponibles del negocio. Devuelve {total, especialidades:[{name, code}]}. Úsala SIEMPRE que necesites mostrar servicios al cliente, ya sea al inicio o cuando quiera cambiar de servicio. NUNCA listes de memoria.</field>
+            <field name="description">Lista los servicios con turnos disponibles del negocio. Devuelve {total, especialidades:[{name, code, precio?, precio_label?}]}. Los campos precio (número) y precio_label (texto ya formateado con la moneda, ej. "$25.00") SOLO aparecen si el servicio tiene precio configurado; si no aparecen, NO inventes un precio: di que no está publicado e invita a confirmarlo al reservar o con una persona. Cuando el cliente pregunte cuánto cuesta un servicio, usa precio_label de esta tool. Úsala SIEMPRE que necesites mostrar servicios o precios al cliente, al inicio o cuando quiera cambiar de servicio. NUNCA listes de memoria.</field>
             <field name="tool_type">wa_agent</field>
             <field name="sequence">10</field>
             <field name="active" eval="True"/>

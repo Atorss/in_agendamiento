@@ -125,6 +125,22 @@ class BusinessProfile(models.Model):
     )
 
     # ------------------------------------------------------------------
+    # Ubicación y contacto
+    #
+    # La dirección, teléfono y email se toman de la propia compañía
+    # (res.company) — fuente única de verdad ya cargada en el provisioning.
+    # Aquí solo añadimos el dato que NO existe en res.company: el enlace de
+    # Google Maps, útil para que el agente lo comparta tal cual por WhatsApp.
+    # ------------------------------------------------------------------
+
+    google_maps_url = fields.Char(
+        string='Enlace de Google Maps',
+        help='URL de Google Maps del local. El agente la comparte cuando el '
+             'cliente pregunta cómo llegar. La dirección y el teléfono se '
+             'toman de la compañía (Configuración → Empresa).',
+    )
+
+    # ------------------------------------------------------------------
     # Reglas de agendamiento
     # ------------------------------------------------------------------
 
