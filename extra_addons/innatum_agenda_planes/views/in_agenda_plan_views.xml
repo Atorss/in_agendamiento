@@ -9,9 +9,8 @@
                 <field name="code"/>
                 <field name="name"/>
                 <field name="precio_mensual_usd" widget="monetary"/>
-                <field name="max_turnos_mes"/>
+                <field name="precio_anual_usd" widget="monetary" optional="show"/>
                 <field name="max_profesionales"/>
-                <field name="ai_enabled" widget="boolean_toggle"/>
                 <field name="ai_margin_pct_default"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
@@ -35,12 +34,23 @@
                             <field name="active"/>
                         </group>
                         <group string="Límites operativos">
-                            <field name="max_turnos_mes"/>
                             <field name="max_profesionales"/>
                         </group>
                     </group>
-                    <group string="IA">
-                        <field name="ai_enabled"/>
+                    <group>
+                        <group string="Facturación anual">
+                            <field name="descuento_anual_tipo"/>
+                            <field name="descuento_anual_meses"
+                                   invisible="descuento_anual_tipo != 'meses'"/>
+                            <field name="descuento_anual_pct"
+                                   invisible="descuento_anual_tipo != 'porcentaje'"/>
+                        </group>
+                        <group string="Precio anual (calculado)">
+                            <field name="precio_anual_usd" readonly="1"/>
+                            <field name="ahorro_anual_usd" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Margen IA">
                         <field name="ai_margin_pct_default"/>
                     </group>
                     <group string="Descripción">

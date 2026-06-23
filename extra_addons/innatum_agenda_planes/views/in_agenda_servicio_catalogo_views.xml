@@ -53,6 +53,9 @@
             <xpath expr="//field[@name='description']" position="attributes">
                 <attribute name="readonly">false</attribute>
             </xpath>
+            <xpath expr="//field[@name='image_1920']" position="attributes">
+                <attribute name="readonly">false</attribute>
+            </xpath>
             <!-- Agregar campo Tenants habilitados (M2M) con su label natural -->
             <xpath expr="//field[@name='code']" position="after">
                 <field name="company_ids" widget="many2many_tags"

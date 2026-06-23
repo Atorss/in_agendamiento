@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_in_edi" model="ir.ui.view">
+        <field name="name">res.config.settings.in_edi</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="account.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@id='invoicing_settings']" position="inside">
+                <setting string="SRI Electronic Invoicing"
+                         help="Ecuador electronic documents emitted to the SRI">
+                    <div class="content-group">
+                        <div class="row mt8">
+                            <label for="in_edi_environment" class="col-lg-4 o_light_label"/>
+                            <field name="in_edi_environment"/>
+                        </div>
+                        <div class="row">
+                            <label for="in_edi_obligado_contabilidad"
+                                   class="col-lg-4 o_light_label"/>
+                            <field name="in_edi_obligado_contabilidad"/>
+                        </div>
+                        <div class="row">
+                            <label for="in_edi_razon_social"
+                                   class="col-lg-4 o_light_label"/>
+                            <field name="in_edi_razon_social"
+                                   placeholder="Defaults to the company name"/>
+                        </div>
+                        <div class="row">
+                            <label for="in_edi_nombre_comercial"
+                                   class="col-lg-4 o_light_label"/>
+                            <field name="in_edi_nombre_comercial"/>
+                        </div>
+                        <div class="row">
+                            <label for="in_edi_dir_matriz" class="col-lg-4 o_light_label"/>
+                            <field name="in_edi_dir_matriz"/>
+                        </div>
+                        <div class="row">
+                            <label for="in_edi_contribuyente_especial"
+                                   class="col-lg-4 o_light_label"/>
+                            <field name="in_edi_contribuyente_especial"/>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

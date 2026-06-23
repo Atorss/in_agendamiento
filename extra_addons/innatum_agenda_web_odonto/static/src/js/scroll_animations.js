@@ -15,6 +15,7 @@
             '.odonto-video',
             '.odonto-contact-form',
             '.odonto-about__image',
+            '.odonto-gallery__item',
             '.odonto-hero__image',
         ];
 

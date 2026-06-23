@@ -50,6 +50,7 @@
                             <field name="is_usuario_only" invisible="1"/>
                             <field name="servicio_ids" widget="many2many_tags"
                                    readonly="state == 'approved'"
+                                   context="{'servicios_por_rol': True}"
                                    options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="professional_id" widget="many2one_avatar_employee"
                                    readonly="is_usuario_only or state == 'approved'"

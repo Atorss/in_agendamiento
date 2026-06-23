@@ -24,6 +24,14 @@ class InnatumAgendaServicio(models.Model):
     code = fields.Char(string='Código', required=True)
     description = fields.Text(string='Descripción')
     active = fields.Boolean(default=True)
+    image_1920 = fields.Image(
+        string='Imagen',
+        max_width=1920,
+        max_height=1920,
+        help='Imagen opcional del servicio. Si se define, el sitio público '
+             'la muestra en la tarjeta del servicio; si no, se muestra solo '
+             'el nombre.',
+    )
 
     company_ids = fields.Many2many(
         'res.company',
@@ -38,6 +46,29 @@ class InnatumAgendaServicio(models.Model):
         ('code_unique', 'unique(code)',
          'El código del servicio debe ser único en el catálogo.'),
     ]
+
+    @api.model
+    def _search(self, domain, offset=0, limit=None, order=None):
+        """Filtra el catálogo por el perfil del usuario cuando se solicita
+        explícitamente con el contexto `servicios_por_rol` (se activa en el
+        selector de servicios de la planificación). Server-side y confiable —
+        a diferencia de un dominio sobre un campo computado, el dropdown
+        (que usa name_search → _search) siempre lo respeta.
+
+        - Administrador del tenant: ve todos los servicios habilitados para su
+          compañía (sin filtro extra; el acceso ya está acotado a la company).
+        - Operador / Usuario: solo los servicios asignados en su ficha de
+          personal (hr.employee.servicio_ids).
+        """
+        if self.env.context.get('servicios_por_rol') and not self.env.su:
+            is_admin = self.env.user.has_group(
+                'innatum_agenda_core.innatum_agenda_group_admin')
+            if not is_admin:
+                emp = self.env['hr.employee'].sudo().search(
+                    [('user_id', '=', self.env.uid)], limit=1)
+                domain = list(domain or []) + [
+                    ('id', 'in', emp.servicio_ids.ids)]
+        return super()._search(domain, offset=offset, limit=limit, order=order)
 
     def unlink(self):
         if not self.env.user.has_group(

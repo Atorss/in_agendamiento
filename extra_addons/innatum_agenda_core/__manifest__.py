@@ -12,12 +12,13 @@
     'author': 'Innatum',
     'website': 'https://www.innatum.com',
     'category': 'Services',
-    'version': '18.0.4.2.0',
+    'version': '18.0.4.18.0',
     'depends': [
         'base',
         'mail',
         'contacts',
         'hr',
+        'l10n_latam_base',
     ],
     'data': [
         'security/innatum_agenda_security.xml',

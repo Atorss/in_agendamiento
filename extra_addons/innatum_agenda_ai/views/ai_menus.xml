@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- Top Menu — consola del DUEÑO del SaaS (Innatum staff). Solo sistema.
+         Los admins de tenant NO ven este menú ni el grupo "Innatum"; tienen
+         su propio "Asistente IA" en el grupo Administración (ver
+         innatum_ai_core_menus.xml). -->
+    <menuitem id="menu_ai_assistant_root"
+              name="Asistente IA"
+              web_icon="innatum_agenda_ai,static/description/ai.png"
+              groups="base.group_system"
+              sequence="99"/>
+
+    <!-- Configuration Menu (first so admin configures provider before chatting) -->
+    <menuitem id="menu_ai_config"
+              name="Configuración"
+              parent="menu_ai_assistant_root"
+              sequence="1"
+              groups="base.group_system,innatum_agenda_ai.group_ai_admin"/>
+
+    <menuitem id="menu_ai_providers"
+              name="Proveedores"
+              parent="menu_ai_config"
+              action="action_ai_provider"
+              sequence="1"/>
+
+    <menuitem id="menu_ai_tools"
+              name="Herramientas"
+              parent="menu_ai_config"
+              action="action_ai_tool"
+              sequence="2"/>
+
+    <menuitem id="menu_ai_data_dict"
+              name="Diccionario de Datos"
+              parent="menu_ai_config"
+              action="action_ai_data_dict"
+              sequence="3"/>
+
+    <menuitem id="menu_ai_usage_log"
+              name="Uso / Costos"
+              parent="menu_ai_assistant_root"
+              action="action_ai_usage_log"
+              sequence="5"
+              groups="base.group_system,innatum_agenda_ai.group_ai_admin"/>
+
+</odoo>

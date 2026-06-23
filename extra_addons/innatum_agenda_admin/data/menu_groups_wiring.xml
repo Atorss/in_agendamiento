@@ -2,10 +2,13 @@
 <odoo>
     <data noupdate="0">
 
-        <!-- Inserta los menús raíz "Mi Negocio" y "Agendamiento" en el grupo
-             "Administración" de la sidebar MUK. (4, id) suma sin pisar otros
-             menús que otros módulos puedan agregar al mismo grupo. -->
+        <!-- Inserta los menús raíz "Mi Negocio", "Agendamiento" y
+             "Colaboradores" en el grupo "Administración" de la sidebar MUK.
+             (4, id) suma sin pisar otros menús que otros módulos puedan
+             agregar al mismo grupo. -->
         <record id="muk_web_appsbar.menu_group_medic_administracion" model="ir.ui.menu.group">
+            <field name="icon" type="base64"
+                   file="innatum_agenda_admin/static/description/administracion.png"/>
             <field name="menu_ids" eval="[
                 (4, ref('innatum_agenda_admin.innatum_agenda_admin_menu_root')),
                 (4, ref('innatum_agenda_core.innatum_agenda_menu_root')),

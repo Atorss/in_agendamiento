@@ -45,12 +45,28 @@
                     <group string="Suscripción">
                         <group>
                             <field name="plan_id"/>
+                            <field name="ciclo_facturacion" widget="radio"
+                                   options="{'horizontal': True}"/>
                             <field name="state_inicial"/>
                         </group>
                         <group>
                             <field name="fecha_inicio"/>
-                            <field name="duracion_meses"/>
+                            <label for="duracion"/>
+                            <div class="o_row">
+                                <field name="duracion"/>
+                                <span invisible="ciclo_facturacion != 'anual'">año(s)</span>
+                                <span invisible="ciclo_facturacion != 'mensual'">mes(es)</span>
+                                <span class="text-muted ms-2">= <field name="duracion_meses_total" class="oe_inline"/> meses</span>
+                            </div>
                         </group>
+                    </group>
+                    <group string="Funcionalidades incluidas (gratis)">
+                        <field name="facturacion_sri_habilitada"/>
+                    </group>
+                    <group string="Add-ons de cobro a activar (precio del catálogo, desde el inicio)">
+                        <field name="addon_ids" nolabel="1" colspan="2"
+                               widget="many2many_tags"
+                               options="{'no_create': True, 'color_field': 'sequence'}"/>
                     </group>
                     <group string="Servicios habilitados para este tenant">
                         <field name="servicio_ids" nolabel="1"

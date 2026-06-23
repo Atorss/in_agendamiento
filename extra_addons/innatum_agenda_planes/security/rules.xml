@@ -81,4 +81,32 @@
         <field name="perm_unlink" eval="True"/>
     </record>
 
+    <!-- ============================================================
+         Reglas GLOBALES (AND ineludible) de aislamiento por tenant para
+         datos de facturación. Backstop: aunque un futuro ACL exponga
+         estos modelos a otro grupo, nadie ve datos de otro tenant.
+         Bypass para staff Innatum (group_system) y admin Innatum del SaaS
+         (group_admin_innatum), que ven todo sin cambiar de company.
+         ============================================================ -->
+    <record id="rule_suscripcion_multi_company" model="ir.rule">
+        <field name="name">Suscripción: aislamiento global por tenant</field>
+        <field name="model_id" ref="model_in_agenda_suscripcion"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('base.group_system') or user.has_group('innatum_agenda_planes.group_admin_innatum')) else [('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_recarga_ia_multi_company" model="ir.rule">
+        <field name="name">Recarga IA: aislamiento global por tenant</field>
+        <field name="model_id" ref="model_in_agenda_recarga_ia"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('base.group_system') or user.has_group('innatum_agenda_planes.group_admin_innatum')) else [('suscripcion_id.company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_suscripcion_addon_multi_company" model="ir.rule">
+        <field name="name">Add-on de suscripción: aislamiento global por tenant</field>
+        <field name="model_id" ref="model_in_agenda_suscripcion_addon"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('base.group_system') or user.has_group('innatum_agenda_planes.group_admin_innatum')) else [('company_id', 'in', company_ids)]</field>
+    </record>
+
 </odoo>

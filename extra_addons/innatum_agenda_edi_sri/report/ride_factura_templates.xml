@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="report_ride_factura">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="innatum_agenda_edi_sri.report_ride_factura_document"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_ride_factura_document">
+                <t t-set="doc"
+                   t-value="o.in_edi_document_ids.sorted('create_date', reverse=True)[:1]"/>
+                <t t-set="company" t-value="o.company_id"/>
+                <t t-set="amb"
+                   t-value="'PRODUCCIÓN' if company.in_edi_environment == '2' else 'PRUEBAS'"/>
+                <t t-set="seq" t-value="(doc.sequential or '').zfill(9) if doc else '000000000'"/>
+                <t t-set="numero"
+                   t-value="'%s-%s-%s' % (o.journal_id.in_edi_estab or '000', o.journal_id.in_edi_pto_emi or '000', seq)"/>
+                <t t-set="descuento"
+                   t-value="sum((l.quantity * l.price_unit * l.discount / 100.0) for l in o.invoice_line_ids.filtered(lambda l: l.display_type == 'product'))"/>
+                <t t-set="base15"
+                   t-value="sum(o.invoice_line_ids.filtered(lambda l: l.display_type == 'product' and any(round(t.amount, 1) == 15.0 for t in l.tax_ids)).mapped('price_subtotal'))"/>
+                <t t-set="base0"
+                   t-value="sum(o.invoice_line_ids.filtered(lambda l: l.display_type == 'product' and any(round(t.amount, 1) == 0.0 for t in l.tax_ids)).mapped('price_subtotal'))"/>
+
+                <div class="article" t-att-data-oe-model="o._name" t-att-data-oe-id="o.id"
+                     t-att-data-oe-lang="o.partner_id.lang">
+                <div class="page"
+                     style="font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #000;">
+
+                    <!-- ===== Cabecera: emisor + comprobante ===== -->
+                    <div style="display: flex; gap: 6px;">
+                        <div style="flex: 1; border: 1px solid #000; padding: 8px;">
+                            <div style="text-align: center;">
+                                <img t-if="company.logo"
+                                     t-att-src="image_data_uri(company.logo)"
+                                     style="max-height: 60px; max-width: 100%;"/>
+                            </div>
+                            <div style="font-size: 13px; font-weight: bold; margin-top: 4px;"
+                                 t-out="company.in_edi_razon_social or company.name"/>
+                            <div t-if="company.in_edi_nombre_comercial">
+                                <strong>Nombre Comercial:</strong>
+                                <span t-out="company.in_edi_nombre_comercial"/>
+                            </div>
+                            <div>
+                                <strong>Dir. Matriz:</strong>
+                                <span t-out="company.in_edi_dir_matriz or company.street or 'S/N'"/>
+                            </div>
+                            <div t-if="company.street and company.in_edi_dir_matriz">
+                                <strong>Dir. Sucursal:</strong>
+                                <span t-out="company.street"/>
+                            </div>
+                            <div t-if="company.in_edi_contribuyente_especial">
+                                <strong>Contribuyente Especial Nro:</strong>
+                                <span t-out="company.in_edi_contribuyente_especial"/>
+                            </div>
+                            <div>
+                                <strong>OBLIGADO A LLEVAR CONTABILIDAD:</strong>
+                                <span t-out="'SI' if company.in_edi_obligado_contabilidad else 'NO'"/>
+                            </div>
+                        </div>
+
+                        <div style="flex: 1; border: 1px solid #000; padding: 8px;">
+                            <div><strong>R.U.C.:</strong> <span t-out="company.vat"/></div>
+                            <div style="font-size: 15px; font-weight: bold; margin: 2px 0;">FACTURA</div>
+                            <div><strong>No.</strong> <span t-out="numero"/></div>
+                            <div style="margin-top: 4px;"><strong>NÚMERO DE AUTORIZACIÓN</strong></div>
+                            <div style="word-break: break-all;"
+                                 t-out="(doc.authorization_number if doc else False) or o.in_edi_access_key or '—'"/>
+                            <div style="margin-top: 4px;">
+                                <strong>FECHA Y HORA DE AUTORIZACIÓN:</strong>
+                                <span t-if="doc and doc.authorization_date"
+                                      t-field="doc.authorization_date"/>
+                                <span t-else="">—</span>
+                            </div>
+                            <div><strong>AMBIENTE:</strong> <span t-out="amb"/></div>
+                            <div><strong>EMISIÓN:</strong> NORMAL</div>
+                            <div style="margin-top: 4px;"><strong>CLAVE DE ACCESO</strong></div>
+                            <div t-if="o.in_edi_access_key" style="text-align: center;">
+                                <img t-att-src="o._in_edi_barcode_src()"
+                                     style="width: 100%; height: 40px;"/>
+                            </div>
+                            <div style="word-break: break-all; font-size: 8px;"
+                                 t-out="o.in_edi_access_key or '—'"/>
+                        </div>
+                    </div>
+
+                    <!-- ===== Adquiriente ===== -->
+                    <div style="border: 1px solid #000; padding: 6px; margin-top: 6px;">
+                        <div>
+                            <strong>Razón Social / Nombres y Apellidos:</strong>
+                            <span t-out="o.partner_id.name"/>
+                        </div>
+                        <div style="display: flex;">
+                            <div style="flex: 1;">
+                                <strong>Identificación:</strong>
+                                <span t-out="o.partner_id.vat or '9999999999999 (CONSUMIDOR FINAL)'"/>
+                            </div>
+                            <div style="flex: 1;">
+                                <strong>Fecha Emisión:</strong>
+                                <span t-field="o.invoice_date"/>
+                            </div>
+                        </div>
+                        <div>
+                            <strong>Dirección:</strong>
+                            <span t-out="o.partner_id.street or ''"/>
+                        </div>
+                    </div>
+
+                    <!-- ===== Detalle ===== -->
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 6px;">
+                        <thead>
+                            <tr style="background: #eee;">
+                                <th style="border: 1px solid #000; padding: 3px;">Cód.<br/>Principal</th>
+                                <th style="border: 1px solid #000; padding: 3px;">Cant.</th>
+                                <th style="border: 1px solid #000; padding: 3px;">Descripción</th>
+                                <th style="border: 1px solid #000; padding: 3px; text-align: right;">Precio<br/>Unitario</th>
+                                <th style="border: 1px solid #000; padding: 3px; text-align: right;">Descuento</th>
+                                <th style="border: 1px solid #000; padding: 3px; text-align: right;">Precio<br/>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="o.invoice_line_ids.filtered(lambda l: l.display_type == 'product')"
+                                t-as="line">
+                                <td style="border: 1px solid #000; padding: 3px;"
+                                    t-out="line.product_id.default_code or ''"/>
+                                <td style="border: 1px solid #000; padding: 3px; text-align: right;"
+                                    t-out="'%.2f' % line.quantity"/>
+                                <td style="border: 1px solid #000; padding: 3px;"
+                                    t-out="line.name"/>
+                                <td style="border: 1px solid #000; padding: 3px; text-align: right;"
+                                    t-out="'%.2f' % line.price_unit"/>
+                                <td style="border: 1px solid #000; padding: 3px; text-align: right;"
+                                    t-out="'%.2f' % (line.quantity * line.price_unit * line.discount / 100.0)"/>
+                                <td style="border: 1px solid #000; padding: 3px; text-align: right;"
+                                    t-out="'%.2f' % line.price_subtotal"/>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- ===== Info adicional + Totales ===== -->
+                    <div style="display: flex; gap: 6px; margin-top: 6px;">
+                        <div style="flex: 1; border: 1px solid #000; padding: 6px;">
+                            <div style="font-weight: bold; border-bottom: 1px solid #000; margin-bottom: 3px;">
+                                Información Adicional
+                            </div>
+                            <div t-if="o.partner_id.email">
+                                <strong>Email:</strong> <span t-out="o.partner_id.email"/>
+                            </div>
+                            <div t-if="o.partner_id.phone">
+                                <strong>Teléfono:</strong> <span t-out="o.partner_id.phone"/>
+                            </div>
+                            <div>
+                                <strong>Observación:</strong> <span t-out="o.ref or o.name or '-'"/>
+                            </div>
+                        </div>
+
+                        <div style="width: 42%;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="border: 1px solid #000; padding: 3px;">SUBTOTAL 15%</td>
+                                    <td style="border: 1px solid #000; padding: 3px; text-align: right;"
+                                        t-out="'%.2f' % base15"/>
+                                </tr>
+                                <tr>
+                                    <td style="border: 1px solid #000; padding: 3px;">SUBTOTAL 0%</td>
+                                    <td style="border: 1px solid #000; padding: 3px; text-align: right;"
+                                        t-out="'%.2f' % base0"/>
+                                </tr>
+                                <tr>
+                                    <td style="border: 1px solid #000; padding: 3px;">SUBTOTAL SIN IMPUESTOS</td>
+                                    <td style="border: 1px solid #000; padding: 3px; text-align: right;"
+                                        t-out="'%.2f' % o.amount_untaxed"/>
+                                </tr>
+                                <tr>
+                                    <td style="border: 1px solid #000; padding: 3px;">TOTAL DESCUENTO</td>
+                                    <td style="border: 1px solid #000; padding: 3px; text-align: right;"
+                                        t-out="'%.2f' % descuento"/>
+                                </tr>
+                                <tr>
+                                    <td style="border: 1px solid #000; padding: 3px;">IVA 15%</td>
+                                    <td style="border: 1px solid #000; padding: 3px; text-align: right;"
+                                        t-out="'%.2f' % o.amount_tax"/>
+                                </tr>
+                                <tr>
+                                    <td style="border: 1px solid #000; padding: 3px;">PROPINA</td>
+                                    <td style="border: 1px solid #000; padding: 3px; text-align: right;">0.00</td>
+                                </tr>
+                                <tr style="background: #eee; font-weight: bold;">
+                                    <td style="border: 1px solid #000; padding: 3px;">VALOR TOTAL</td>
+                                    <td style="border: 1px solid #000; padding: 3px; text-align: right;"
+                                        t-out="'%.2f' % o.amount_total"/>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ===== Forma de pago ===== -->
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 6px;">
+                        <thead>
+                            <tr style="background: #eee;">
+                                <th style="border: 1px solid #000; padding: 3px;">Forma de Pago</th>
+                                <th style="border: 1px solid #000; padding: 3px; text-align: right;">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 3px;">SIN UTILIZACIÓN DEL SISTEMA FINANCIERO</td>
+                                <td style="border: 1px solid #000; padding: 3px; text-align: right;"
+                                    t-out="'%.2f' % o.amount_total"/>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                </div>
+                </div>
+    </template>
+
+    <!-- Hacer que el botón "Imprimir" estándar use el RIDE en facturas
+         electrónicas SRI; el resto de comprobantes mantiene el formato Odoo. -->
+    <template id="report_invoice_document_in_edi"
+              inherit_id="account.report_invoice_document">
+        <xpath expr="//t[@t-call='web.external_layout'][1]" position="before">
+            <t t-if="o.move_type in ('out_invoice', 'out_refund') and (o.in_edi_access_key or o.journal_id.in_edi_enabled)">
+                <t t-call="innatum_agenda_edi_sri.report_ride_factura_document"/>
+            </t>
+        </xpath>
+        <xpath expr="//t[@t-call='web.external_layout'][1]" position="attributes">
+            <attribute name="t-if">not (o.move_type in ('out_invoice', 'out_refund') and (o.in_edi_access_key or o.journal_id.in_edi_enabled))</attribute>
+        </xpath>
+    </template>
+
+</odoo>

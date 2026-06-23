@@ -115,7 +115,7 @@ class InAgendaColaboradorWizard(models.TransientModel):
             'tz': tz,
         })
 
-        # 2. Crear hr.employee linkeado al user
+        # 2. Crear hr.employee linkeado al user, con los servicios que atiende
         employee = self.env['hr.employee'].sudo().create({
             'name': self.name,
             'work_email': self.work_email,
@@ -124,23 +124,13 @@ class InAgendaColaboradorWizard(models.TransientModel):
             'identification_id': self.identification_id or False,
             'user_id': user.id,
             'company_id': company.id,
+            'servicio_ids': [(6, 0, self.servicio_ids.ids)],
         })
 
         _logger.info(
-            'Colaborador creado en tenant company=%s: user=%s emp=%s',
-            company.name, user.id, employee.id,
+            'Colaborador creado en tenant company=%s: user=%s emp=%s servicios=%s',
+            company.name, user.id, employee.id, self.servicio_ids.ids,
         )
-
-        # 3. Si seleccionó servicios, los anotamos como notas internas
-        # (los servicios se vinculan al profesional vía planificación,
-        # no directamente en hr.employee — esto solo queda como referencia
-        # para que el admin recuerde qué crear en la planificación)
-        if self.servicio_ids:
-            nombres = ', '.join(self.servicio_ids.mapped('name'))
-            employee.sudo().message_post(
-                body=_('Servicios sugeridos para asignar en planificación: '
-                       '%s') % nombres,
-            )
 
         # 4. Abrir el form del empleado recién creado
         return {
@@ -151,3 +141,111 @@ class InAgendaColaboradorWizard(models.TransientModel):
             'view_mode': 'form',
             'target': 'current',
         }
+
+
+class InAgendaColaboradorAccesoWizard(models.TransientModel):
+    """Wizard para que el admin del tenant cambie el correo de trabajo y/o la
+    contraseña de un colaborador. Corre con sudo y SINCRONIZA el cambio en:
+    el empleado (work_email + work_contact), su usuario (login/email/password)
+    y el partner del usuario."""
+    _name = 'in_agenda.colaborador.acceso.wizard'
+    _description = 'Wizard: Cambiar acceso de colaborador'
+
+    employee_id = fields.Many2one(
+        'hr.employee', string='Colaborador', required=True, readonly=True)
+    user_id = fields.Many2one(
+        'res.users', related='employee_id.user_id', readonly=True)
+    new_work_email = fields.Char(string='Correo de trabajo', required=True)
+    new_password = fields.Char(
+        string='Nueva contraseña',
+        help='Déjala vacía para NO cambiarla. Mínimo 8 caracteres.')
+
+    @api.onchange('employee_id')
+    def _onchange_employee_id(self):
+        if self.employee_id:
+            self.new_work_email = self.employee_id.work_email
+
+    @api.constrains('new_work_email')
+    def _check_email_format(self):
+        for rec in self:
+            if rec.new_work_email and '@' not in rec.new_work_email:
+                raise ValidationError(_('Ingresa un email válido.'))
+
+    @api.constrains('new_password')
+    def _check_password(self):
+        for rec in self:
+            if rec.new_password and len(rec.new_password) < 8:
+                raise ValidationError(_(
+                    'La contraseña debe tener al menos 8 caracteres.'))
+
+    def action_aplicar(self):
+        self.ensure_one()
+        emp = self.employee_id.sudo()
+        email = (self.new_work_email or '').strip()
+        user = emp.user_id.sudo()
+
+        # Login único en el sistema (excluyendo al propio usuario)
+        if email:
+            dup = self.env['res.users'].sudo().search([
+                ('login', '=', email),
+                ('id', '!=', user.id if user else 0),
+            ], limit=1)
+            if dup:
+                raise ValidationError(_(
+                    'Ya existe un usuario con el correo "%s". Usa otro.') % email)
+
+        # 1. Empleado
+        if email:
+            emp.write({'work_email': email})
+            if emp.work_contact_id:
+                emp.work_contact_id.sudo().write({'email': email})
+
+        # 2. Usuario (login/email/password) + su partner
+        if user:
+            uvals = {}
+            if email:
+                uvals['login'] = email
+                uvals['email'] = email
+            if self.new_password:
+                uvals['password'] = self.new_password
+            if uvals:
+                user.with_context(no_reset_password=True).write(uvals)
+            if email and user.partner_id:
+                user.partner_id.sudo().write({'email': email})
+
+        _logger.info(
+            'Acceso de colaborador actualizado emp=%s user=%s (email=%s, pass=%s)',
+            emp.id, user.id if user else None, bool(email), bool(self.new_password))
+        return {'type': 'ir.actions.act_window_close'}
+
+
+class InAgendaColaboradorServiciosWizard(models.TransientModel):
+    """Wizard para editar (agregar/quitar) los servicios que atiende un
+    colaborador. El admin del tenant tiene hr.employee read-only, así que el
+    cambio se aplica con sudo desde aquí."""
+    _name = 'in_agenda.colaborador.servicios.wizard'
+    _description = 'Wizard: Editar servicios del colaborador'
+
+    employee_id = fields.Many2one(
+        'hr.employee', string='Colaborador', required=True, readonly=True)
+    servicio_ids = fields.Many2many(
+        'innatum.agenda.servicio',
+        'in_agenda_colab_serv_wiz_rel', 'wizard_id', 'servicio_id',
+        string='Servicios que atiende',
+        domain="[('company_ids', 'in', allowed_company_ids)]",
+        help='Servicios del catálogo habilitados para tu negocio que este '
+             'colaborador brinda.')
+
+    @api.onchange('employee_id')
+    def _onchange_employee_id(self):
+        if self.employee_id:
+            self.servicio_ids = self.employee_id.servicio_ids
+
+    def action_aplicar(self):
+        self.ensure_one()
+        self.employee_id.sudo().write({
+            'servicio_ids': [(6, 0, self.servicio_ids.ids)]})
+        _logger.info(
+            'Servicios de colaborador emp=%s actualizados: %s',
+            self.employee_id.id, self.servicio_ids.ids)
+        return {'type': 'ir.actions.act_window_close'}

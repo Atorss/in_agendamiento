@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+
+        <!-- Inserta el menú raíz "Innatum SaaS" (innatum_agenda_planes) en el
+             grupo "Innatum" de la sidebar MUK. El menú del agente IA ya no
+             tiene root propio: nidifica bajo "Asistente IA" (menu_ai_assistant_root),
+             que se wirea en data/menu_groups_innatum.xml. (4, id) suma sin pisar. -->
+        <record id="muk_web_appsbar.menu_group_innatum" model="ir.ui.menu.group">
+            <field name="menu_ids" eval="[
+                (4, ref('innatum_agenda_planes.menu_innatum_saas_root')),
+            ]"/>
+        </record>
+
+        <!-- El "Asistente IA" del TENANT va en el grupo "Administración"
+             (lo que ve el admin del tenant), no en "Innatum". -->
+        <record id="muk_web_appsbar.menu_group_medic_administracion" model="ir.ui.menu.group">
+            <field name="menu_ids" eval="[
+                (4, ref('innatum_agenda_ai.menu_ai_tenant_root')),
+            ]"/>
+        </record>
+
+    </data>
+</odoo>

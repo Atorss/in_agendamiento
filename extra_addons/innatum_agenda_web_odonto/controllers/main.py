@@ -29,9 +29,10 @@ class OdontoWebController(http.Controller):
         apellido = (post.get('apellido') or '').strip()
         email = (post.get('email') or '').strip()
         telefono = (post.get('telefono') or '').strip()
+        pais = (post.get('pais') or '').strip()
         interes_raw = (post.get('interes') or '').strip()
 
-        if not all([nombre, apellido, email, telefono, interes_raw]):
+        if not all([nombre, apellido, email, telefono, pais, interes_raw]):
             return {
                 'success': False,
                 'message': 'Todos los campos son obligatorios.',
@@ -57,14 +58,22 @@ class OdontoWebController(http.Controller):
                 servicio = request.env['innatum.agenda.servicio'].sudo().browse()
         interes_label = servicio.name if servicio else interes_raw
 
+        # Mapear país (texto del select) a res.country best-effort
+        country = request.env['res.country'].sudo().search(
+            [('name', 'ilike', pais)], limit=1,
+        ) if pais else request.env['res.country'].sudo().browse()
+
         # Crear partner pre-reserva del tenant
-        partner = request.env['res.partner'].sudo().create({
+        partner_vals = {
             'name': f'{nombre} {apellido}',
             'email': email,
             'phone': telefono,
             'company_id': company.id,
-            'comment': f'Pre-reserva web. Interés: {interes_label}',
-        })
+            'comment': f'Pre-reserva web. País: {pais}. Interés: {interes_label}',
+        }
+        if country:
+            partner_vals['country_id'] = country.id
+        partner = request.env['res.partner'].sudo().create(partner_vals)
 
         # Notificar al admin del tenant via chatter de la company
         try:
@@ -75,6 +84,7 @@ class OdontoWebController(http.Controller):
                     f'<li>Cliente: {nombre} {apellido}</li>'
                     f'<li>Email: {email}</li>'
                     f'<li>Teléfono: {telefono}</li>'
+                    f'<li>País: {pais}</li>'
                     f'<li>Interés: {interes_label}</li>'
                     f'</ul>'
                 ),

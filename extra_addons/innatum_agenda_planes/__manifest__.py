@@ -23,10 +23,9 @@
     'author': 'Innatum',
     'website': 'https://www.innatum.com',
     'category': 'Services',
-    'version': '18.0.2.4.0',
+    'version': '18.0.3.4.0',
     'depends': [
         'innatum_agenda_core',
-        'innatum_ai',
         'website',
     ],
     'data': [
@@ -34,9 +33,11 @@
         'security/ir.model.access.csv',
         'security/rules.xml',
         'data/planes_default.xml',
+        'data/addons_default.xml',
         'data/sequences.xml',
         'data/cron.xml',
         'views/in_agenda_plan_views.xml',
+        'views/in_agenda_addon_views.xml',
         'views/in_agenda_suscripcion_views.xml',
         'views/in_agenda_recarga_ia_views.xml',
         'wizard/wizard_tenant_provisioning_views.xml',

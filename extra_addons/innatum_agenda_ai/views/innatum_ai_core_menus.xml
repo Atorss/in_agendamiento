@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Sin root propio: el agente WhatsApp nidifica bajo "Asistente IA"
+         (innatum_ai), el motor. innatum_ai_core depende de innatum_ai, así que
+         puede parentar bajo sus menús. En nutrición (que solo tiene el motor)
+         estos submenús no aparecen — sin contaminación cross-producto. -->
+
+    <menuitem id="menu_innatum_ai_sessions"
+              name="Sesiones WhatsApp"
+              parent="innatum_agenda_ai.menu_ai_assistant_root"
+              action="action_ai_whatsapp_inbox"
+              sequence="10"/>
+
+    <menuitem id="menu_innatum_ai_business_profile"
+              name="Perfiles de Negocio"
+              parent="innatum_agenda_ai.menu_ai_assistant_root"
+              action="action_business_profile"
+              sequence="20"/>
+
+    <menuitem id="menu_innatum_ai_knowledge"
+              name="Conocimiento del Negocio"
+              parent="innatum_agenda_ai.menu_ai_assistant_root"
+              action="action_business_knowledge"
+              sequence="30"/>
+
+    <!-- Config del agente bajo la "Configuración" del motor (hereda su
+         restricción a admin: base.group_system / innatum_agenda_ai.group_ai_admin). -->
+    <menuitem id="menu_innatum_ai_vertical_template"
+              name="Plantillas de Vertical"
+              parent="innatum_agenda_ai.menu_ai_config"
+              action="action_vertical_template"
+              sequence="10"/>
+
+    <menuitem id="menu_innatum_ai_prompt"
+              name="Prompts del Agente"
+              parent="innatum_agenda_ai.menu_ai_config"
+              action="action_ai_prompt"
+              sequence="20"/>
+
+    <!-- ============================================================
+         "Asistente IA" del TENANT — visible al admin del tenant (NO al grupo
+         Innatum, que es solo del dueño/sistema). Apunta a las MISMAS actions;
+         las record rules las scopean a la company del tenant. Se wirea al
+         grupo de apps "Administración" en data/menu_groups_wiring.xml.
+         ============================================================ -->
+    <menuitem id="menu_ai_tenant_root"
+              name="WhatsApp"
+              web_icon="innatum_agenda_ai,static/description/whatsapp.png"
+              groups="innatum_agenda_core.innatum_agenda_group_admin"
+              sequence="55"/>
+
+    <menuitem id="menu_ai_tenant_business_profile"
+              name="Mi Agente"
+              parent="menu_ai_tenant_root"
+              action="action_business_profile"
+              groups="innatum_agenda_core.innatum_agenda_group_admin"
+              sequence="10"/>
+
+    <menuitem id="menu_ai_tenant_sessions"
+              name="Sesiones WhatsApp"
+              parent="menu_ai_tenant_root"
+              action="action_ai_whatsapp_inbox"
+              groups="innatum_agenda_core.innatum_agenda_group_admin"
+              sequence="20"/>
+
+</odoo>

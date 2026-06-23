@@ -9,7 +9,7 @@ que el caller pertenezca al tenant correcto.
 
 import logging
 
-from odoo import models, _
+from odoo import models, fields, _
 from odoo.exceptions import AccessError, ValidationError
 
 _logger = logging.getLogger(__name__)
@@ -17,6 +17,15 @@ _logger = logging.getLogger(__name__)
 
 class HrEmployee(models.Model):
     _inherit = 'hr.employee'
+
+    servicio_ids = fields.Many2many(
+        'innatum.agenda.servicio',
+        'innatum_agenda_employee_servicio_rel',
+        'employee_id', 'servicio_id',
+        string='Servicios que atiende',
+        help='Servicios del catálogo que este colaborador brinda. La '
+             'planificación de sus horarios los toma por defecto.',
+    )
 
     def _check_caller_can_manage(self):
         """El caller debe tener el grupo Administrador de Agenda."""
@@ -72,3 +81,20 @@ class HrEmployee(models.Model):
                 emp.id, self.env.user.login,
             )
         return True
+
+
+class HrEmployeePublic(models.Model):
+    """Expone `servicio_ids` en el perfil PÚBLICO del empleado.
+
+    Los usuarios que no son oficiales de RRHH (hr.group_hr_user) leen
+    hr.employee vía hr.employee.public. Sin esto, leer
+    `professional_id.servicio_ids` (p.ej. el onchange de la planificación o
+    el form de colaborador) falla con "campos no disponibles para los
+    perfiles públicos". Patrón idéntico al que usa Odoo para las imágenes.
+    """
+    _inherit = 'hr.employee.public'
+
+    servicio_ids = fields.Many2many(
+        'innatum.agenda.servicio',
+        related='employee_id.servicio_ids',
+        string='Servicios que atiende')

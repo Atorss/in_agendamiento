@@ -129,6 +129,13 @@ class InnatumAgendaConfig(models.Model):
             rec.turno_count = len(turnos)
             rec.turno_available_count = len(turnos.filtered(lambda t: t.state == 'available'))
 
+    @api.onchange('professional_id')
+    def _onchange_professional_servicios(self):
+        """La planificación toma por defecto los servicios que atiende el
+        profesional. El usuario puede ajustarlos después."""
+        if self.professional_id and self.professional_id.servicio_ids:
+            self.servicio_ids = self.professional_id.servicio_ids
+
     @api.constrains('servicio_ids', 'professional_id')
     def _check_servicios_habilitados_para_tenant(self):
         """Solo se pueden usar servicios habilitados por Innatum para

@@ -49,6 +49,8 @@
                         <group string="Tenant y plan">
                             <field name="company_id" options="{'no_create': True, 'no_open': True}"/>
                             <field name="plan_id"/>
+                            <field name="ciclo_facturacion" widget="radio" options="{'horizontal': True}"/>
+                            <field name="precio_aplicado_usd" readonly="1"/>
                             <field name="external_ref" readonly="1"/>
                         </group>
                         <group string="Vigencia">
@@ -56,6 +58,32 @@
                             <field name="fecha_fin"/>
                             <field name="active"/>
                         </group>
+                    </group>
+                    <group string="Funcionalidades incluidas (gratis)">
+                        <field name="facturacion_sri_habilitada"/>
+                    </group>
+                    <group string="Add-ons de cobro (vigencia por fechas)">
+                        <field name="addon_ids" nolabel="1" colspan="2">
+                            <list editable="bottom">
+                                <field name="addon_id"/>
+                                <field name="es_gratis" readonly="1" optional="hide"/>
+                                <field name="fecha_inicio"/>
+                                <field name="fecha_fin"/>
+                                <field name="precio_mensual_usd"/>
+                                <field name="precio_anual_usd"/>
+                                <field name="activo_hoy" widget="boolean_toggle" readonly="1"/>
+                            </list>
+                        </field>
+                        <group>
+                            <field name="precio_aplicado_usd" readonly="1" string="Plan base (período)"/>
+                            <field name="precio_addons_usd" readonly="1"/>
+                            <field name="precio_total_usd" readonly="1" class="fw-bold"/>
+                        </group>
+                    </group>
+                    <group string="Servicios habilitados para el tenant">
+                        <field name="servicio_ids" nolabel="1" colspan="2"
+                               widget="many2many_tags"
+                               options="{'no_create': True, 'no_create_edit': True}"/>
                     </group>
                     <group string="IA">
                         <group>

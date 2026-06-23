@@ -3,7 +3,7 @@
 
     <!-- Menú raíz -->
     <menuitem id="innatum_agenda_menu_root" name="Agendamiento"
-              web_icon="innatum_agenda_core,static/description/icon.png"
+              web_icon="innatum_agenda_core,static/description/agenda.png"
               sequence="25"/>
 
     <!-- Submenús -->

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="addon_ia_web" model="in_agenda.addon">
+        <field name="name">IA web (chatbot del sitio)</field>
+        <field name="code">ia_web</field>
+        <field name="sequence">10</field>
+        <field name="es_gratis" eval="False"/>
+        <field name="precio_mensual_usd">5.00</field>
+        <field name="precio_anual_usd">50.00</field>
+        <field name="descripcion">Chatbot IA en el sitio público. El consumo de tokens se paga aparte con recargas.</field>
+    </record>
+
+    <record id="addon_whatsapp" model="in_agenda.addon">
+        <field name="name">Agente WhatsApp</field>
+        <field name="code">whatsapp</field>
+        <field name="sequence">20</field>
+        <field name="es_gratis" eval="False"/>
+        <field name="precio_mensual_usd">12.00</field>
+        <field name="precio_anual_usd">120.00</field>
+        <field name="descripcion">Agente de WhatsApp para reservas/consultas vía n8n. Valor fijo mensual.</field>
+    </record>
+
+    <!-- Facturación SRI NO está aquí: es gratuita, se habilita con un check
+         en la suscripción (facturacion_sri_habilitada), no es add-on de cobro. -->
+
+</odoo>

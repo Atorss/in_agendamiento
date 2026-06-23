@@ -32,6 +32,15 @@
         <field name="arch" type="xml">
             <form string="Colaborador" create="false" edit="false">
                 <header>
+                    <button name="%(action_in_agenda_colaborador_acceso_wizard)d" type="action"
+                            string="Cambiar acceso" class="btn-primary"
+                            context="{'default_employee_id': id}"
+                            invisible="not user_id"
+                            groups="innatum_agenda_core.innatum_agenda_group_admin"/>
+                    <button name="%(action_in_agenda_colaborador_servicios_wizard)d" type="action"
+                            string="Editar servicios" class="btn-secondary"
+                            context="{'default_employee_id': id}"
+                            groups="innatum_agenda_core.innatum_agenda_group_admin"/>
                     <button name="action_desactivar_colaborador" type="object"
                             string="Desactivar" class="btn-warning"
                             invisible="not active"
@@ -53,10 +62,14 @@
                             <field name="work_phone" readonly="1"/>
                         </group>
                         <group string="Sistema">
-                            <field name="user_id" readonly="1"/>
+                            <field name="user_id" readonly="1" options="{'no_open': True}"/>
                             <field name="active" readonly="1"/>
                             <field name="company_id" readonly="1" groups="base.group_no_one"/>
                         </group>
+                    </group>
+                    <group string="Servicios que atiende">
+                        <field name="servicio_ids" nolabel="1" readonly="1"
+                               widget="many2many_tags"/>
                     </group>
                 </sheet>
                 <!-- Chatter omitido: incluye activity_ids/message_ids que
@@ -101,28 +114,8 @@
         </field>
     </record>
 
-    <!-- Menú raíz propio "Colaboradores" — fuera de Agendamiento para
-         mejor organización visual del tenant -->
-    <menuitem id="menu_innatum_colaboradores_root"
-              name="Colaboradores"
-              sequence="60"
-              groups="innatum_agenda_group_user"/>
-
-    <!-- Lista de Colaboradores (read-only para tenant) -->
-    <menuitem id="menu_innatum_colaboradores"
-              name="Colaboradores"
-              parent="menu_innatum_colaboradores_root"
-              action="action_innatum_colaboradores"
-              sequence="5"
-              groups="innatum_agenda_group_user"/>
-
-    <!-- "Nuevo colaborador" → abre wizard, solo para admin del tenant -->
-    <menuitem id="menu_innatum_nuevo_colaborador"
-              name="Nuevo colaborador"
-              parent="menu_innatum_colaboradores_root"
-              action="action_in_agenda_colaborador_wizard"
-              sequence="10"
-              groups="innatum_agenda_group_admin"/>
+    <!-- Los menús de Colaboradores se definen en innatum_agenda_admin, dentro
+         de "Mi Negocio" (config del tenant). Aquí solo quedan las acciones. -->
 
     <!-- ============================================================
          Ocultar menú estándar "Empleados" para todos excepto admin

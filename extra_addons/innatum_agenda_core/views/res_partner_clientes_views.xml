@@ -16,6 +16,71 @@
          global rule de res.partner modificada por este mismo módulo.
          ============================================================ -->
 
+    <!-- ============================================================
+         Form PROPIO (standalone) para "Clientes" de la agenda. No hereda el
+         form de contactos de Odoo (así no arrastra su maqueta ni los campos
+         de sale/account). Layout limpio con grupos etiquetados.
+
+         - Identificación: solo RUC y Cédula (domain country EC).
+         - Datos de contacto (tel/cel/correo): SOLO si la suscripción del
+           tenant incluye facturación (factura_electronica_tenant).
+         - Sin nombre de empresa, sitio web, título, etiquetas ni pestañas.
+         La ficha global de Contactos queda intacta (este form solo lo usa
+         la acción Clientes).
+         ============================================================ -->
+    <record id="view_partner_form_cliente_simple" model="ir.ui.view">
+        <field name="name">res.partner.form.cliente.simple</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" eval="False"/>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <form string="Cliente">
+                <sheet>
+                    <field name="factura_electronica_tenant" invisible="1"/>
+                    <field name="image_1920" widget="image" class="oe_avatar"
+                           options="{'preview_image': 'avatar_128'}"/>
+                    <div class="oe_title">
+                        <field name="company_type" widget="radio"
+                               options="{'horizontal': true}"/>
+                        <h1>
+                            <field name="name" placeholder="Por ejemplo, Francisco Pérez"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Identificación">
+                            <field name="l10n_latam_identification_type_id" string="Tipo"
+                                   domain="[('country_id.code', '=', 'EC')]"
+                                   options="{'no_create': True, 'no_open': True}"/>
+                            <!-- Label estático "Número" (l10n_latam cambia el
+                                 label dinámico de vat al nombre del tipo). -->
+                            <label for="vat" string="Número"/>
+                            <field name="vat" nolabel="1"/>
+                        </group>
+                        <group string="Dirección">
+                            <field name="country_id" string="País" placeholder="País"
+                                   options="{'no_open': True, 'no_create': True}"/>
+                            <field name="state_id" string="Provincia" placeholder="Provincia"
+                                   options="{'no_open': True, 'no_quick_create': True}"
+                                   domain="[('country_id', '=', country_id)]"
+                                   context="{'default_country_id': country_id}"/>
+                            <field name="city" string="Ciudad" placeholder="Ciudad"/>
+                            <field name="street" string="Calle" placeholder="Calle"/>
+                        </group>
+                    </group>
+                    <group string="Datos de contacto" invisible="not factura_electronica_tenant">
+                        <group>
+                            <field name="phone" widget="phone"/>
+                            <field name="mobile" widget="phone"/>
+                        </group>
+                        <group>
+                            <field name="email" widget="email"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
     <record id="action_innatum_clientes" model="ir.actions.act_window">
         <field name="name">Clientes</field>
         <field name="res_model">res.partner</field>
@@ -24,7 +89,13 @@
         <field name="context">{
             'default_company_id': allowed_company_ids and allowed_company_ids[0],
             'search_default_customer': 1,
+            'cliente_default_pais': 1,
         }</field>
+        <!-- Lista/kanban estándar; form = nuestro form propio de cliente -->
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'sequence': 10, 'view_mode': 'list'}),
+            (0, 0, {'sequence': 20, 'view_mode': 'kanban'}),
+            (0, 0, {'sequence': 30, 'view_mode': 'form', 'view_id': ref('view_partner_form_cliente_simple')})]"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Aún no hay clientes registrados

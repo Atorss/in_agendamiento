@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Extiende el form de colaborador (definido en core) para gestionar el
+         permiso de autoplanificación. El campo `puede_planificar` y el método
+         viven en este módulo (admin), por eso la herencia va aquí. -->
+    <record id="view_hr_employee_colaborador_form_planif" model="ir.ui.view">
+        <field name="name">hr.employee.colaborador.form.planif</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id"
+               ref="innatum_agenda_core.view_hr_employee_colaborador_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Botones para activar/desactivar el permiso (sudo en el método,
+                 porque el form es read-only para el admin del tenant). -->
+            <xpath expr="//header/button[last()]" position="after">
+                <button name="action_toggle_puede_planificar" type="object"
+                        string="Bloquear planificación" class="btn-warning"
+                        invisible="not puede_planificar"
+                        groups="innatum_agenda_core.innatum_agenda_group_admin"
+                        confirm="¿Bloquear que este colaborador cree/reprograme su propia agenda?"/>
+                <button name="action_toggle_puede_planificar" type="object"
+                        string="Permitir planificación" class="btn-success"
+                        invisible="puede_planificar"
+                        groups="innatum_agenda_core.innatum_agenda_group_admin"/>
+            </xpath>
+
+            <!-- Indicador del estado actual (en el grupo "Sistema") -->
+            <xpath expr="//field[@name='active']" position="after">
+                <field name="puede_planificar" widget="boolean_toggle" readonly="1"/>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

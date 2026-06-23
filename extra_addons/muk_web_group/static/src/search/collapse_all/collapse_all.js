@@ -38,7 +38,7 @@ export const collapseAllItem = {
     groupNumber: 15,
     isDisplayed: async (env) => (
         ['kanban', 'list'].includes(env.config.viewType) && 
-        env.model.root.isGrouped
+        env.model?.root?.isGrouped
     )
 };
 

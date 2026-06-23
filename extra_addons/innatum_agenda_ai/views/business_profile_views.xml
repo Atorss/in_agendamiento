@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_business_profile_list" model="ir.ui.view">
+        <field name="name">innatum.business.profile.list</field>
+        <field name="model">innatum.business.profile</field>
+        <field name="arch" type="xml">
+            <list string="Perfiles de Negocio">
+                <field name="company_id"/>
+                <field name="vertical_template_id"/>
+                <field name="family"/>
+                <field name="bot_name"/>
+                <field name="payment_policy"/>
+                <field name="agent_enabled" widget="boolean_toggle"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_business_profile_form" model="ir.ui.view">
+        <field name="name">innatum.business.profile.form</field>
+        <field name="model">innatum.business.profile</field>
+        <field name="arch" type="xml">
+            <form string="Perfil del Negocio">
+                <sheet>
+                    <widget name="web_ribbon" title="Archivado" bg_color="bg-danger"
+                            invisible="active"/>
+                    <widget name="web_ribbon" title="Bot pausado" bg_color="bg-warning"
+                            invisible="agent_enabled or not active"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group groups="innatum_agenda_ai.group_ai_admin">
+                        <group>
+                            <field name="company_id"/>
+                            <field name="vertical_template_id"/>
+                            <field name="family" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="agent_enabled" widget="boolean_toggle"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Identidad" name="page_identity">
+                            <group>
+                                <group>
+                                    <field name="bot_name"
+                                           placeholder="Ej: Sofía, Asistente Virtual, Dr. Bot, etc."/>
+                                    <field name="business_description_short"
+                                           placeholder="1-2 oraciones sobre el negocio..."/>
+                                </group>
+                            </group>
+                        </page>
+
+                        <page string="Personalidad del agente" name="page_personality" groups="innatum_agenda_ai.group_ai_admin">
+                            <group>
+                                <group>
+                                    <field name="tone"/>
+                                    <field name="addressing"/>
+                                </group>
+                                <group>
+                                    <field name="emoji_usage"/>
+                                    <field name="language_code"/>
+                                </group>
+                            </group>
+                            <separator string="Personalidad específica del negocio"/>
+                            <field name="personality_prompt"
+                                   placeholder="Tono y reglas específicas que sobrescriben los defaults del vertical..."/>
+                            <separator string="Mensajes del agente"/>
+                            <group>
+                                <field name="welcome_message"
+                                       placeholder="¡Hola! Soy [nombre]. ¿En qué te puedo ayudar?"/>
+                                <field name="error_fallback_message"/>
+                            </group>
+                        </page>
+
+                        <page string="Horarios y ubicación" name="page_hours" groups="innatum_agenda_ai.group_ai_admin">
+                            <group string="Horario de atención">
+                                <field name="business_hours"
+                                       placeholder="Lun-Vie 9-18, Sab 9-13"/>
+                            </group>
+                            <group string="Ubicación">
+                                <field name="google_maps_url"
+                                       placeholder="https://maps.google.com/..."
+                                       widget="url"/>
+                            </group>
+                            <div class="alert alert-info" role="status">
+                                <i class="fa fa-info-circle"/>
+                                La <b>dirección, teléfono y email</b> que el agente
+                                comparte se toman de la compañía (Configuración →
+                                Empresa) — manténlos actualizados ahí. La zona
+                                horaria también. La duración real de cada turno se
+                                define en cada Planificación de Horarios.
+                            </div>
+                        </page>
+
+                        <page string="Reglas de agenda" name="page_booking_rules" groups="innatum_agenda_ai.group_ai_admin">
+                            <group string="Anticipación">
+                                <field name="min_advance_booking_hours"/>
+                                <field name="max_advance_booking_days"/>
+                            </group>
+                            <group string="Reagendamiento">
+                                <field name="allows_rescheduling"/>
+                                <field name="min_reschedule_notice_hours"
+                                       invisible="not allows_rescheduling"/>
+                                <field name="max_reschedules_per_appointment"
+                                       invisible="not allows_rescheduling"/>
+                            </group>
+                            <group string="Cancelación">
+                                <field name="allows_cancellation"/>
+                                <field name="min_cancellation_notice_hours"
+                                       invisible="not allows_cancellation"/>
+                                <field name="cancellation_policy_text"
+                                       invisible="not allows_cancellation"
+                                       placeholder="Política que el agente cita si el cliente pregunta..."/>
+                            </group>
+                        </page>
+
+                        <page string="Política de cobro" name="page_payment" groups="innatum_agenda_ai.group_ai_admin">
+                            <group>
+                                <field name="payment_policy"/>
+                                <field name="anticipo_percent"
+                                       invisible="payment_policy != 'anticipo'"
+                                       required="payment_policy == 'anticipo'"/>
+                            </group>
+                            <div class="alert alert-info" role="status">
+                                En Fase 1B este campo es informativo: el agente
+                                lo cita en sus respuestas pero NO genera links
+                                de pago todavía. El cobro real con Nuvei se
+                                activa en Fase 3.
+                            </div>
+                        </page>
+
+                        <page string="Sesión y límites" name="page_session" groups="innatum_agenda_ai.group_ai_admin">
+                            <group>
+                                <field name="max_messages_per_session"/>
+                                <field name="session_idle_timeout_hours"/>
+                                <field name="send_confirmation_message"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Form embebido para usar en res.company (One2many widget).
+         Sin chatter, sin ribbon, solo el notebook con tabs. Lo usa la
+         vista de "Administración → Mi Negocio → Empresa" para que el
+         tenant admin edite su perfil sin salir del form de la empresa. -->
+    <record id="view_business_profile_form_embedded" model="ir.ui.view">
+        <field name="name">innatum.business.profile.form.embedded</field>
+        <field name="model">innatum.business.profile</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <form string="Perfil del Negocio">
+                <group>
+                    <group>
+                        <field name="vertical_template_id"/>
+                        <field name="family" readonly="1"/>
+                    </group>
+                    <group>
+                        <field name="agent_enabled" widget="boolean_toggle"/>
+                    </group>
+                </group>
+                <notebook>
+                    <page string="Identidad">
+                        <group>
+                            <field name="bot_name"/>
+                        </group>
+                        <field name="business_description_short"/>
+                    </page>
+                    <page string="Personalidad">
+                        <group>
+                            <group>
+                                <field name="tone"/>
+                                <field name="addressing"/>
+                            </group>
+                            <group>
+                                <field name="emoji_usage"/>
+                                <field name="language_code"/>
+                            </group>
+                        </group>
+                        <field name="personality_prompt"/>
+                        <group>
+                            <field name="welcome_message"/>
+                            <field name="error_fallback_message"/>
+                        </group>
+                    </page>
+                    <page string="Horarios y ubicación">
+                        <group string="Horario de atención">
+                            <field name="business_hours"/>
+                        </group>
+                        <group string="Ubicación">
+                            <field name="google_maps_url"
+                                   placeholder="https://maps.google.com/..."
+                                   widget="url"/>
+                        </group>
+                        <div class="alert alert-info" role="status">
+                            <i class="fa fa-info-circle"/>
+                            La dirección, teléfono y email que el agente comparte
+                            se toman de los datos de tu empresa.
+                        </div>
+                    </page>
+                    <page string="Reglas de agenda">
+                        <group string="Anticipación">
+                            <field name="min_advance_booking_hours"/>
+                            <field name="max_advance_booking_days"/>
+                        </group>
+                        <group string="Reagendamiento">
+                            <field name="allows_rescheduling"/>
+                            <field name="min_reschedule_notice_hours"
+                                   invisible="not allows_rescheduling"/>
+                            <field name="max_reschedules_per_appointment"
+                                   invisible="not allows_rescheduling"/>
+                        </group>
+                        <group string="Cancelación">
+                            <field name="allows_cancellation"/>
+                            <field name="min_cancellation_notice_hours"
+                                   invisible="not allows_cancellation"/>
+                            <field name="cancellation_policy_text"
+                                   invisible="not allows_cancellation"/>
+                        </group>
+                    </page>
+                    <page string="Política de cobro">
+                        <group>
+                            <field name="payment_policy"/>
+                            <field name="anticipo_percent"
+                                   invisible="payment_policy != 'anticipo'"
+                                   required="payment_policy == 'anticipo'"/>
+                        </group>
+                    </page>
+                    <page string="Sesión">
+                        <group>
+                            <field name="max_messages_per_session"/>
+                            <field name="session_idle_timeout_hours"/>
+                            <field name="send_confirmation_message"/>
+                        </group>
+                    </page>
+                </notebook>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_business_profile_search" model="ir.ui.view">
+        <field name="name">innatum.business.profile.search</field>
+        <field name="model">innatum.business.profile</field>
+        <field name="arch" type="xml">
+            <search string="Buscar perfil">
+                <field name="company_id"/>
+                <field name="vertical_template_id"/>
+                <field name="bot_name"/>
+                <filter name="filter_active" string="Activos" domain="[('active', '=', True)]"/>
+                <filter name="filter_agent_on" string="Agente activo" domain="[('agent_enabled', '=', True)]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter name="group_family" string="Familia" context="{'group_by': 'family'}"/>
+                    <filter name="group_vertical" string="Vertical"
+                            context="{'group_by': 'vertical_template_id'}"/>
+                    <filter name="group_payment" string="Política de cobro"
+                            context="{'group_by': 'payment_policy'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_business_profile" model="ir.actions.act_window">
+        <field name="name">Perfiles de Negocio</field>
+        <field name="res_model">innatum.business.profile</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_business_profile_search"/>
+    </record>
+
+</odoo>

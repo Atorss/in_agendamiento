@@ -49,4 +49,81 @@
         <field name="target">new</field>
     </record>
 
+    <!-- Wizard: cambiar correo de trabajo / contraseña de un colaborador -->
+    <record id="view_in_agenda_colaborador_acceso_wizard_form" model="ir.ui.view">
+        <field name="name">in_agenda.colaborador.acceso.wizard.form</field>
+        <field name="model">in_agenda.colaborador.acceso.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Cambiar acceso">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Cambiar acceso del colaborador</h1>
+                        <p class="text-muted">
+                            Actualiza el correo de trabajo y/o la contraseña.
+                            El cambio sincroniza el empleado, su usuario de
+                            Odoo (login) y su contacto.
+                        </p>
+                    </div>
+                    <group>
+                        <field name="employee_id" invisible="1"/>
+                        <field name="user_id" readonly="1" options="{'no_open': True}"/>
+                        <field name="new_work_email" placeholder="correo@negocio.com"/>
+                        <field name="new_password" password="True"
+                               placeholder="(dejar vacío para no cambiarla)"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Aplicar cambios" type="object"
+                            name="action_aplicar" class="btn-primary"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_in_agenda_colaborador_acceso_wizard" model="ir.actions.act_window">
+        <field name="name">Cambiar acceso</field>
+        <field name="res_model">in_agenda.colaborador.acceso.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Wizard: editar servicios que atiende el colaborador -->
+    <record id="view_in_agenda_colaborador_servicios_wizard_form" model="ir.ui.view">
+        <field name="name">in_agenda.colaborador.servicios.wizard.form</field>
+        <field name="model">in_agenda.colaborador.servicios.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Servicios del colaborador">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Servicios que atiende</h1>
+                        <p class="text-muted">
+                            Agrega o quita los servicios que brinda este
+                            colaborador. La planificación de sus horarios los
+                            toma por defecto.
+                        </p>
+                    </div>
+                    <group>
+                        <field name="employee_id" invisible="1"/>
+                        <field name="servicio_ids" nolabel="1"
+                               widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Guardar" type="object"
+                            name="action_aplicar" class="btn-primary"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_in_agenda_colaborador_servicios_wizard" model="ir.actions.act_window">
+        <field name="name">Editar servicios</field>
+        <field name="res_model">in_agenda.colaborador.servicios.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
 </odoo>

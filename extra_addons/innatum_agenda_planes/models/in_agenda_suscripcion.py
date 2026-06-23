@@ -3,6 +3,8 @@
 import logging
 import uuid
 
+from dateutil.relativedelta import relativedelta
+
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError, UserError
 
@@ -54,6 +56,49 @@ class InAgendaSuscripcion(models.Model):
         help='Margen de Innatum sobre recargas IA. Snapshot del plan al '
              'crear la suscripción; puede ajustarse manualmente después.',
     )
+    ciclo_facturacion = fields.Selection([
+        ('mensual', 'Mensual'),
+        ('anual', 'Anual'),
+    ], string='Ciclo de facturación', default='mensual', required=True,
+        tracking=True,
+        help='Cómo paga el tenant. El anual aplica el descuento del plan.')
+    precio_aplicado_usd = fields.Float(
+        string='Precio plan (USD)', compute='_compute_precio_aplicado',
+        store=True, digits=(12, 2),
+        help='Precio del PLAN BASE según el ciclo: mensual, o anual con el '
+             'descuento del plan. No incluye add-ons.')
+
+    # --- Funcionalidad gratuita (no add-on de cobro): solo un check ---
+    facturacion_sri_habilitada = fields.Boolean(
+        string='Facturación electrónica (SRI)', default=False, tracking=True,
+        help='Funcionalidad GRATUITA: emisión de comprobantes electrónicos al '
+             'SRI. No es un add-on de cobro, es solo habilitar la función.')
+
+    # --- Add-ons de COBRO activados por cliente (catálogo, vigencia por fechas) ---
+    addon_ids = fields.One2many(
+        'in_agenda.suscripcion.addon', 'suscripcion_id', string='Add-ons',
+        help='Add-ons de pago activados para este tenant (IA web, WhatsApp), '
+             'con su período de vigencia. Permite activarlos a mitad de la '
+             'suscripción.')
+    precio_addons_usd = fields.Float(
+        string='Add-ons (período, USD)', compute='_compute_precio_addons',
+        store=True, digits=(12, 2),
+        help='Suma de los add-ons VIGENTES hoy, según el ciclo (precio '
+             'mensual o anual del add-on).')
+    precio_total_usd = fields.Float(
+        string='Total del período (USD)', compute='_compute_precio_total',
+        store=True, digits=(12, 2),
+        help='Plan base + add-ons vigentes, según el ciclo.')
+
+    # --- Servicios del catálogo habilitados para el tenant (M2M inverso a
+    #     servicio.company_ids). Permite ver/agregar/quitar desde la suscripción. ---
+    servicio_ids = fields.Many2many(
+        'innatum.agenda.servicio', string='Servicios habilitados',
+        compute='_compute_servicio_ids', inverse='_inverse_servicio_ids',
+        help='Servicios del catálogo Innatum habilitados para este tenant. '
+             'No se puede quitar un servicio que ya tiene planificaciones '
+             'creadas para el tenant.')
+
     state = fields.Selection([
         ('trial', 'Trial'),
         ('active', 'Activa'),
@@ -100,6 +145,79 @@ class InAgendaSuscripcion(models.Model):
             rec.tokens_disponibles_total_usd = sum(recs.mapped('tokens_disponibles_usd'))
             rec.tokens_consumidos_total_usd = sum(recs.mapped('tokens_consumidos_usd'))
             rec.tokens_restantes_total_usd = sum(recs.mapped('tokens_restantes_usd'))
+
+    @api.depends('plan_id', 'ciclo_facturacion',
+                 'plan_id.precio_mensual_usd', 'plan_id.precio_anual_usd')
+    def _compute_precio_aplicado(self):
+        for rec in self:
+            if rec.ciclo_facturacion == 'anual':
+                rec.precio_aplicado_usd = rec.plan_id.precio_anual_usd
+            else:
+                rec.precio_aplicado_usd = rec.plan_id.precio_mensual_usd
+
+    @api.depends('addon_ids', 'addon_ids.precio_mensual_usd',
+                 'addon_ids.precio_anual_usd', 'addon_ids.fecha_inicio',
+                 'addon_ids.fecha_fin', 'ciclo_facturacion')
+    def _compute_precio_addons(self):
+        today = fields.Date.today()
+        for rec in self:
+            total = 0.0
+            for line in rec.addon_ids:
+                vigente = (line.fecha_inicio and line.fecha_inicio <= today
+                           and (not line.fecha_fin or line.fecha_fin >= today))
+                if vigente:
+                    total += (line.precio_anual_usd if rec.ciclo_facturacion == 'anual'
+                              else line.precio_mensual_usd)
+            rec.precio_addons_usd = total
+
+    @api.depends('precio_aplicado_usd', 'precio_addons_usd')
+    def _compute_precio_total(self):
+        for rec in self:
+            # precio_aplicado y precio_addons ya están en la unidad del ciclo
+            # (ambos mensual, o ambos anual), así que es suma directa.
+            rec.precio_total_usd = rec.precio_aplicado_usd + rec.precio_addons_usd
+
+    @api.depends('company_id')
+    def _compute_servicio_ids(self):
+        Serv = self.env['innatum.agenda.servicio'].sudo()
+        for rec in self:
+            rec.servicio_ids = Serv.search(
+                [('company_ids', 'in', rec.company_id.id)]) if rec.company_id else False
+
+    def _inverse_servicio_ids(self):
+        """Sincroniza servicio.company_ids con la company del tenant.
+        Al QUITAR un servicio, valida que no tenga planificaciones creadas
+        para este tenant (si las tiene, bloquea)."""
+        Serv = self.env['innatum.agenda.servicio'].sudo()
+        Config = self.env['innatum.agenda.config'].sudo()
+        for rec in self:
+            company = rec.company_id
+            if not company:
+                continue
+            deseados = rec.servicio_ids
+            actuales = Serv.search([('company_ids', 'in', company.id)])
+            for s in (actuales - deseados):
+                n_plan = Config.search_count([
+                    ('company_id', '=', company.id),
+                    ('servicio_ids', 'in', s.id),
+                ])
+                if n_plan:
+                    raise ValidationError(_(
+                        'No se puede quitar el servicio «%(serv)s»: ya tiene '
+                        '%(n)d planificación(es) creada(s) para este tenant. '
+                        'Elimina primero esas planificaciones.',
+                        serv=s.name, n=n_plan,
+                    ))
+                s.write({'company_ids': [(3, company.id)]})
+            for s in (deseados - actuales):
+                s.write({'company_ids': [(4, company.id)]})
+
+    @api.onchange('fecha_inicio', 'ciclo_facturacion')
+    def _onchange_vigencia(self):
+        """Deriva fecha_fin del ciclo: mensual = +1 mes, anual = +12 meses."""
+        if self.fecha_inicio:
+            meses = 12 if self.ciclo_facturacion == 'anual' else 1
+            self.fecha_fin = self.fecha_inicio + relativedelta(months=meses)
 
     @api.constrains('fecha_inicio', 'fecha_fin')
     def _check_fechas(self):
@@ -194,6 +312,54 @@ class InAgendaSuscripcion(models.Model):
         """
         return self._get_for_company(company)
 
+    # Claves de feature válidas. Cada una corresponde al `code` de un add-on
+    # del catálogo (in_agenda.addon). Las features se activan por períodos en
+    # las líneas addon_ids; el gate mira si HOY hay una línea vigente.
+    _FEATURE_KEYS = ('ia_web', 'whatsapp', 'facturacion_sri')
+
+    def _has_feature(self, key):
+        """True si ESTA suscripción (activa) tiene el add-on `key` VIGENTE hoy.
+
+        Una suscripción no activa (suspended/cancelled/expired) no habilita
+        ninguna feature. La vigencia se evalúa por las fechas de la línea
+        (ej. WhatsApp activado desde marzo no aplica en febrero).
+        """
+        self.ensure_one()
+        if key not in self._FEATURE_KEYS:
+            raise ValidationError(_('Feature desconocida: %s') % key)
+        if self.state not in ('trial', 'active') or not self.active:
+            return False
+        # Facturación SRI es gratuita: un check simple, no add-on con fechas.
+        if key == 'facturacion_sri':
+            return self.facturacion_sri_habilitada
+        # IA web / WhatsApp: add-ons de cobro, vigentes por fecha de la línea.
+        today = fields.Date.today()
+        return any(
+            line.code == key
+            and line.fecha_inicio and line.fecha_inicio <= today
+            and (not line.fecha_fin or line.fecha_fin >= today)
+            for line in self.addon_ids
+        )
+
+    @api.model
+    def _company_has_feature(self, company, key):
+        """True si la company tiene una suscripción activa con el add-on `key`
+        vigente hoy.
+
+        Punto de entrada único para los gates server-side (webhook WhatsApp,
+        facturación SRI, chatbot web). La company del sistema
+        (base.main_company) no opera como tenant: tiene todas las features.
+        """
+        if key not in self._FEATURE_KEYS:
+            raise ValidationError(_('Feature desconocida: %s') % key)
+        if not company:
+            return False
+        main_company = self.env.ref('base.main_company', raise_if_not_found=False)
+        if main_company and company == main_company:
+            return True  # sistema: sin restricciones
+        susc = self._get_for_company(company)
+        return bool(susc) and susc._has_feature(key)
+
     @api.model
     def _has_ai_credit_for_company(self, company):
         """Devuelve True si la company tiene saldo IA disponible.
@@ -205,7 +371,7 @@ class InAgendaSuscripcion(models.Model):
 
         Criterios:
         - Existe suscripción activa (trial/active)
-        - Plan tiene ai_enabled=True
+        - El add-on IA web está vigente hoy en la suscripción
         - Suma de tokens_restantes_usd > 0
         """
         if not company:
@@ -213,7 +379,7 @@ class InAgendaSuscripcion(models.Model):
         susc = self._get_for_company(company)
         if not susc:
             return False
-        if not susc.plan_id.ai_enabled:
+        if not susc._has_feature('ia_web'):
             return False
         return susc.tokens_restantes_total_usd > 0
 

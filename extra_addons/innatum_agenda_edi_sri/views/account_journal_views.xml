@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_account_journal_form_in_edi" model="ir.ui.view">
+        <field name="name">account.journal.form.in_edi</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.view_account_journal_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='advanced_settings']" position="inside">
+                <group string="SRI Electronic Invoicing"
+                       invisible="type != 'sale'">
+                    <field name="in_edi_enabled"/>
+                    <field name="in_edi_estab" invisible="not in_edi_enabled"
+                           required="in_edi_enabled"/>
+                    <field name="in_edi_pto_emi" invisible="not in_edi_enabled"
+                           required="in_edi_enabled"/>
+                    <field name="in_edi_sequence_next" invisible="not in_edi_enabled"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

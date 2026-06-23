@@ -36,12 +36,30 @@ class HrEmployee(models.Model):
             'registros maestros.'
     )
     puede_planificar = fields.Boolean(
-        string='Puede crear su planificación', default=False,
-        help='Si está activo, este empleado puede crear su propia '
-             'planificación de horarios aunque su rol sea solo "Usuario".\n\n'
+        string='Puede crear su planificación', default=True,
+        help='Si está activo, este empleado puede crear y reprogramar su '
+             'propia planificación de horarios aunque su rol sea solo '
+             '"Usuario" (siempre limitado a SU agenda).\n\n'
+             'Activo por defecto: cada profesional administra su agenda. '
+             'El administrador puede desactivarlo para un colaborador puntual.\n\n'
              'Operador y Administrador siempre pueden crear planificaciones, '
              'sin importar este flag.',
     )
+
+    def action_toggle_puede_planificar(self):
+        """Permite al admin del tenant activar/desactivar el permiso de
+        autoplanificación de un colaborador. Corre con sudo porque el admin
+        tiene hr.employee en read-only; protegido al grupo Administrador."""
+        if not self.env.user.has_group(
+                'innatum_agenda_core.innatum_agenda_group_admin'):
+            raise UserError(
+                'Solo el Administrador del negocio puede cambiar este permiso.')
+        for emp in self:
+            emp.sudo().write({'puede_planificar': not emp.puede_planificar})
+            _logger.info(
+                'innatum_agenda_admin: puede_planificar de emp=%d -> %s (por %s)',
+                emp.id, emp.puede_planificar, self.env.user.login)
+        return True
 
     def _innatum_agenda_groups_for_rol(self, rol):
         """Devuelve un recordset res.groups con base.group_user + el grupo

@@ -60,6 +60,10 @@ $inag-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
         font-weight: 700;
         letter-spacing: 1.5px;
         color: #fff !important;
+        // La appsbar oculta el botón de apps del navbar, así que el brand
+        // queda pegado al borde izquierdo: le damos aire.
+        padding-left: 18px;
+        margin-left: 4px;
 
         &::after {
             content: '';

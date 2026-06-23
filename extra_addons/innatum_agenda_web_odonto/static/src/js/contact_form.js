@@ -19,10 +19,11 @@ publicWidget.registry.OdontoContactForm = publicWidget.Widget.extend({
         var apellido = $form.find('input[name="apellido"]').val().trim();
         var email = $form.find('input[name="email"]').val().trim();
         var telefono = $form.find('input[name="telefono"]').val().trim();
+        var pais = $form.find('select[name="pais"]').val();
         var interes = $form.find('select[name="interes"]').val();
 
         // Validacion
-        if (!nombre || !apellido || !email || !telefono || !interes) {
+        if (!nombre || !apellido || !email || !telefono || !pais || !interes) {
             self._showMessage($msg, 'Por favor completa todos los campos.', 'error');
             return;
         }
@@ -42,6 +43,7 @@ publicWidget.registry.OdontoContactForm = publicWidget.Widget.extend({
                 apellido: apellido,
                 email: email,
                 telefono: telefono,
+                pais: pais,
                 interes: interes,
             },
         }).then(function (result) {

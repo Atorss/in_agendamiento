@@ -187,6 +187,21 @@ class InnatumAgendaTurno(models.Model):
                     f'opciones disponibles de este horario.'
                 )
 
+    @api.constrains('partner_id')
+    def _check_partner_same_company(self):
+        """Coherencia multi-tenant: el cliente del turno debe ser del mismo
+        tenant que el turno. Defensa en profundidad: el flujo público ya crea
+        el partner en la company del website, pero esto bloquea asignaciones
+        cruzadas por backend/RPC."""
+        for rec in self:
+            p = rec.partner_id
+            if (p and p.company_id and rec.company_id
+                    and p.company_id != rec.company_id):
+                raise ValidationError(
+                    'El cliente seleccionado pertenece a otra empresa. '
+                    'No se puede reservar este turno a su nombre.'
+                )
+
     @api.constrains('date_start')
     def _check_date_start_future(self):
         for rec in self:

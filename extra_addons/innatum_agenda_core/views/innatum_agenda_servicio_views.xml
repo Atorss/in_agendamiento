@@ -23,6 +23,7 @@
         <field name="arch" type="xml">
             <form duplicate="0" string="Servicio" create="false" edit="false" delete="false">
                 <sheet>
+                    <field name="image_1920" widget="image" class="oe_avatar" readonly="1"/>
                     <div class="oe_title">
                         <label for="name"/>
                         <h1><field name="name" readonly="1"/></h1>

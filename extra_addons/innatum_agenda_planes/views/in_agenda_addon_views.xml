@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_in_agenda_addon_list" model="ir.ui.view">
+        <field name="name">in_agenda.addon.list</field>
+        <field name="model">in_agenda.addon</field>
+        <field name="arch" type="xml">
+            <list string="Add-ons">
+                <field name="sequence" widget="handle"/>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="es_gratis" widget="boolean_toggle"/>
+                <field name="precio_mensual_usd" widget="monetary"/>
+                <field name="precio_anual_usd" widget="monetary"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_in_agenda_addon_form" model="ir.ui.view">
+        <field name="name">in_agenda.addon.form</field>
+        <field name="model">in_agenda.addon</field>
+        <field name="arch" type="xml">
+            <form string="Add-on">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Ej: Agente WhatsApp"/></h1>
+                        <field name="code" placeholder="whatsapp"/>
+                    </div>
+                    <group>
+                        <group string="Precio">
+                            <field name="es_gratis"/>
+                            <field name="precio_mensual_usd" invisible="es_gratis"/>
+                            <field name="precio_anual_usd" invisible="es_gratis"/>
+                        </group>
+                        <group string="Estado">
+                            <field name="active"/>
+                            <field name="sequence"/>
+                        </group>
+                    </group>
+                    <group string="Descripción">
+                        <field name="descripcion" nolabel="1" colspan="2"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_in_agenda_addon" model="ir.actions.act_window">
+        <field name="name">Add-ons</field>
+        <field name="res_model">in_agenda.addon</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

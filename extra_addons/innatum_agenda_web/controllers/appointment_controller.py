@@ -284,12 +284,14 @@ class AppointmentController(http.Controller):
             vat = vat.strip()
             partner = self._find_partner_by_vat(vat)
             if partner:
+                # Privacidad: NO devolver teléfono/email a un caller anónimo
+                # (se podrían cosechar contactos enumerando cédulas). Basta
+                # confirmar que es cliente; al reservar, el partner se resuelve
+                # por cédula en el servidor (/citas/submit).
                 return {
                     'success': True,
                     'exists': True,
                     'name': partner.name,
-                    'phone': partner.mobile or partner.phone or '',
-                    'email': partner.email or '',
                 }
             return {'success': True, 'exists': False}
         except Exception as e:

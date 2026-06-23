@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="innatum_agenda_ai.WhatsappInbox">
+        <div class="o_wa_inbox d-flex h-100">
+
+            <!-- ============ Columna 1: lista de conversaciones ============ -->
+            <div class="o_wa_list d-flex flex-column">
+                <div class="o_wa_list_header">
+                    <h4 class="m-0">Conversaciones</h4>
+                    <div class="o_wa_tabs">
+                        <span class="o_wa_tab" t-att-class="{ 'active': state.filter === 'all' }"
+                              t-on-click="() => this.setFilter('all')">Todas</span>
+                        <span class="o_wa_tab" t-att-class="{ 'active': state.filter === 'active' }"
+                              t-on-click="() => this.setFilter('active')">Activas</span>
+                        <span class="o_wa_tab" t-att-class="{ 'active': state.filter === 'handoff' }"
+                              t-on-click="() => this.setFilter('handoff')">Handoff</span>
+                    </div>
+                    <input type="text" class="form-control form-control-sm o_wa_search"
+                           placeholder="Buscar…" t-model="state.search"/>
+                </div>
+
+                <div class="o_wa_list_body flex-grow-1">
+                    <t t-if="state.loadingList">
+                        <div class="text-center p-4 text-muted">
+                            <i class="fa fa-spinner fa-spin fa-2x"/>
+                        </div>
+                    </t>
+                    <t t-elif="!visibleConversations.length">
+                        <div class="text-center p-4 text-muted">Sin conversaciones</div>
+                    </t>
+                    <t t-else="">
+                        <t t-foreach="visibleConversations" t-as="c" t-key="c.id">
+                            <div class="o_wa_conv" t-att-class="{ 'active': c.id === state.activeId }"
+                                 t-on-click="() => this.openConversation(c.id)">
+                                <div class="o_wa_avatar" t-esc="initials(c)"/>
+                                <div class="o_wa_conv_body">
+                                    <div class="o_wa_conv_top">
+                                        <span class="o_wa_conv_name" t-esc="title(c)"/>
+                                        <span class="o_wa_conv_time" t-esc="formatDate(c.last_date)"/>
+                                    </div>
+                                    <div class="o_wa_conv_preview">
+                                        <t t-if="c.last_role === 'assistant'">
+                                            <i class="fa fa-reply text-muted me-1"/>
+                                        </t>
+                                        <span t-esc="c.last_preview"/>
+                                    </div>
+                                    <div class="o_wa_conv_meta">
+                                        <span t-attf-class="badge bg-{{ c.state_color }}" t-esc="c.state_label"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+                    </t>
+                </div>
+            </div>
+
+            <!-- ============ Columna 2: hilo de la conversación ============ -->
+            <div class="o_wa_thread d-flex flex-column flex-grow-1">
+                <t t-if="!state.activeId">
+                    <div class="o_wa_empty d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                        <i class="fa fa-whatsapp fa-3x mb-2"/>
+                        <p>Selecciona una conversación para verla</p>
+                    </div>
+                </t>
+                <t t-elif="state.loadingDetail || !state.detail">
+                    <div class="text-center p-4 text-muted">
+                        <i class="fa fa-spinner fa-spin fa-2x"/>
+                    </div>
+                </t>
+                <t t-else="">
+                    <div class="o_wa_thread_header">
+                        <div class="o_wa_avatar" t-esc="(state.detail.partner and state.detail.partner.name or state.detail.wa_from).charAt(0).toUpperCase()"/>
+                        <div class="flex-grow-1">
+                            <div class="o_wa_thread_title" t-esc="state.detail.partner and state.detail.partner.name or state.detail.wa_from"/>
+                            <div class="o_wa_thread_sub text-muted" t-esc="state.detail.wa_from"/>
+                        </div>
+                        <span t-attf-class="badge bg-{{ state.detail.state_color }}" t-esc="state.detail.state_label"/>
+                    </div>
+
+                    <div class="o_wa_messages flex-grow-1">
+                        <t t-if="!state.detail.messages.length">
+                            <div class="text-center p-4 text-muted">Sin mensajes</div>
+                        </t>
+                        <t t-foreach="state.detail.messages" t-as="m" t-key="m.id">
+                            <div class="o_wa_msg_row" t-att-class="{ 'out': isOutbound(m.role) }">
+                                <div class="o_wa_bubble" t-att-class="'role_' + m.role">
+                                    <div class="o_wa_bubble_text" t-esc="m.content"/>
+                                    <div class="o_wa_bubble_time">
+                                        <span t-esc="roleLabel(m.role)"/> · <span t-esc="formatDate(m.date)"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <div class="o_wa_composer text-muted">
+                        <i class="fa fa-lock me-2"/>
+                        Bandeja de solo lectura. Las respuestas las envía el agente automático.
+                    </div>
+                </t>
+            </div>
+
+            <!-- ============ Columna 3: ficha de contacto ============ -->
+            <t t-if="state.detail">
+                <div class="o_wa_contact d-flex flex-column">
+                    <div class="o_wa_contact_header">
+                        <div class="o_wa_avatar o_wa_avatar_lg" t-esc="(state.detail.partner and state.detail.partner.name or state.detail.wa_from).charAt(0).toUpperCase()"/>
+                        <h5 class="m-0" t-esc="state.detail.partner and state.detail.partner.name or 'Sin identificar'"/>
+                        <div class="text-muted" t-esc="state.detail.company_name"/>
+                    </div>
+
+                    <div class="o_wa_contact_section">
+                        <div class="o_wa_field"><i class="fa fa-whatsapp"/> <span t-esc="state.detail.wa_from"/></div>
+                        <t t-if="state.detail.partner and state.detail.partner.phone">
+                            <div class="o_wa_field"><i class="fa fa-phone"/> <span t-esc="state.detail.partner.phone"/></div>
+                        </t>
+                        <t t-if="state.detail.partner and state.detail.partner.email">
+                            <div class="o_wa_field"><i class="fa fa-envelope"/> <span t-esc="state.detail.partner.email"/></div>
+                        </t>
+                        <t t-if="state.detail.partner and state.detail.partner.vat">
+                            <div class="o_wa_field"><i class="fa fa-id-card"/> <span t-esc="state.detail.partner.vat"/></div>
+                        </t>
+                    </div>
+
+                    <div class="o_wa_contact_section">
+                        <div class="o_wa_field_label">Estado</div>
+                        <span t-attf-class="badge bg-{{ state.detail.state_color }}" t-esc="state.detail.state_label"/>
+                    </div>
+
+                    <t t-if="state.detail.turno_name">
+                        <div class="o_wa_contact_section">
+                            <div class="o_wa_field_label">Turno reservado</div>
+                            <div t-esc="state.detail.turno_name"/>
+                        </div>
+                    </t>
+
+                    <div class="o_wa_contact_section">
+                        <div class="o_wa_field_label">Inicio</div>
+                        <div t-esc="formatDate(state.detail.create_date)"/>
+                        <t t-if="state.detail.expires_at">
+                            <div class="o_wa_field_label mt-2">Expira</div>
+                            <div t-esc="formatDate(state.detail.expires_at)"/>
+                        </t>
+                    </div>
+                </div>
+            </t>
+
+        </div>
+    </t>
+
+</templates>

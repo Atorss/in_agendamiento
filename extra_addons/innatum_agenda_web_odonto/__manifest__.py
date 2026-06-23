@@ -16,7 +16,7 @@
     'author': 'Innatum',
     'website': 'https://www.innatum.com',
     'category': 'Services',
-    'version': '18.0.1.1.0',
+    'version': '18.0.1.4.0',
     'depends': [
         'innatum_agenda_web',
     ],

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Integra la facturación electrónica SRI en el form de Empresa del
+         tenant (Administración → Mi Negocio → Empresa). SOLO se muestra si la
+         suscripción del tenant tiene activada la facturación
+         (tiene_facturacion_sri). El admin del tenant sube su firma (.p12)
+         desde el smart button — aislado a su company por la ir.rule global.
+         ============================================================ -->
+    <record id="view_company_empresa_sri_inherit" model="ir.ui.view">
+        <field name="name">res.company.empresa.form.sri</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id"
+               ref="innatum_agenda_admin.innatum_agenda_admin_empresa_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <field name="tiene_facturacion_sri" invisible="1"/>
+                <button class="oe_stat_button" icon="fa-certificate" type="object"
+                        name="action_open_in_edi_certificates"
+                        invisible="not tiene_facturacion_sri">
+                    <field name="in_edi_certificate_count" widget="statinfo"
+                           string="Firma electrónica"/>
+                </button>
+            </xpath>
+
+            <xpath expr="//sheet" position="inside">
+                <group string="Facturación electrónica (SRI)"
+                       invisible="not tiene_facturacion_sri">
+                    <div class="alert alert-info" role="status" colspan="2">
+                        <i class="fa fa-info-circle"/>
+                        Completa estos datos y sube tu <b>firma electrónica</b>
+                        (botón arriba) para poder emitir comprobantes al SRI.
+                        El RUC se toma de "Identificación fiscal".
+                    </div>
+                    <group string="Datos del emisor">
+                        <field name="in_edi_razon_social"
+                               placeholder="Razón social (debe coincidir con el RUC)"/>
+                        <field name="in_edi_nombre_comercial"/>
+                        <field name="in_edi_dir_matriz"
+                               placeholder="Dirección de la matriz"/>
+                    </group>
+                    <group string="Régimen / ambiente">
+                        <field name="in_edi_obligado_contabilidad"/>
+                        <field name="in_edi_contribuyente_especial"
+                               placeholder="N° de resolución (si aplica)"/>
+                        <!-- Ambiente y tipo: solo Innatum (controla el paso a
+                             producción para no emitir real antes de certificar). -->
+                        <field name="in_edi_environment" groups="base.group_system"/>
+                        <field name="in_edi_emission_type" groups="base.group_system"/>
+                    </group>
+                </group>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

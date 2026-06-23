@@ -77,6 +77,15 @@
         <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_id', 'in', company_ids)]</field>
     </record>
 
+    <!-- Líneas de planificación: hijas de config; el modelo no tiene
+         company_id propio, se aísla por la company del config padre. -->
+    <record id="rule_config_line_multi_company" model="ir.rule">
+        <field name="name">Línea de planificación: aislamiento por tenant</field>
+        <field name="model_id" ref="model_innatum_agenda_config_line"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('config_id.company_id', 'in', company_ids)]</field>
+    </record>
+
     <!-- ============================================================
          Record Rules para innatum.agenda.config (Planificación)
          ============================================================ -->

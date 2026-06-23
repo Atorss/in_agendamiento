@@ -5,21 +5,31 @@
          Renombrado para no colisionar con el grupo "Administración" de la sidebar. -->
     <menuitem id="innatum_agenda_admin_menu_root"
               name="Mi Negocio"
+              web_icon="innatum_agenda_admin,static/description/mi_negocio.png"
               sequence="90"
               groups="innatum_agenda_core.innatum_agenda_group_admin"/>
-
-    <!-- Personal -->
-    <menuitem id="innatum_agenda_admin_menu_personal"
-              name="Personal"
-              parent="innatum_agenda_admin_menu_root"
-              action="innatum_agenda_admin_personal_action"
-              sequence="10"/>
 
     <!-- Empresa -->
     <menuitem id="innatum_agenda_admin_menu_empresa"
               name="Empresa"
               parent="innatum_agenda_admin_menu_root"
               action="innatum_agenda_admin_empresa_action"
-              sequence="20"/>
+              sequence="10"/>
+
+    <!-- Colaboradores (antes era app aparte; unificado bajo Mi Negocio).
+         Apuntan a las acciones que viven en innatum_agenda_core. -->
+    <menuitem id="innatum_agenda_admin_menu_colaboradores"
+              name="Colaboradores"
+              parent="innatum_agenda_admin_menu_root"
+              action="innatum_agenda_core.action_innatum_colaboradores"
+              sequence="20"
+              groups="innatum_agenda_core.innatum_agenda_group_user"/>
+
+    <menuitem id="innatum_agenda_admin_menu_nuevo_colaborador"
+              name="Nuevo colaborador"
+              parent="innatum_agenda_admin_menu_root"
+              action="innatum_agenda_core.action_in_agenda_colaborador_wizard"
+              sequence="30"
+              groups="innatum_agenda_core.innatum_agenda_group_admin"/>
 
 </odoo>

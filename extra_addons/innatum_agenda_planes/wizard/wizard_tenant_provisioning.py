@@ -85,13 +85,49 @@ class InAgendaTenantWizard(models.TransientModel):
     fecha_inicio = fields.Date(
         string='Inicio', required=True, default=fields.Date.today,
     )
-    duracion_meses = fields.Integer(
-        string='Duración (meses)', required=True, default=1,
-    )
+    ciclo_facturacion = fields.Selection([
+        ('mensual', 'Mensual'),
+        ('anual', 'Anual'),
+    ], string='Ciclo de facturación', default='mensual', required=True,
+        help='Mensual o anual. El anual aplica el descuento del plan y fija '
+             'la duración en 12 meses.')
+    duracion = fields.Integer(
+        string='Duración', required=True, default=1,
+        help='Cantidad de períodos según el ciclo: MESES si es mensual, '
+             'AÑOS si es anual. Ej: ciclo anual + 1 = un año.')
+    duracion_meses_total = fields.Integer(
+        string='Duración total (meses)', compute='_compute_duracion_meses_total',
+        help='Meses reales = duración × (12 si anual, 1 si mensual). Define '
+             'la fecha de fin.')
     state_inicial = fields.Selection([
         ('trial', 'Trial'),
         ('active', 'Activa'),
     ], string='Estado inicial', default='active', required=True)
+
+    # --- Funcionalidad gratuita: solo un check ---
+    facturacion_sri_habilitada = fields.Boolean(
+        string='Facturación electrónica (SRI)', default=False,
+        help='Funcionalidad gratuita: habilita la emisión de comprobantes al '
+             'SRI para este tenant.')
+
+    # --- Add-ons de cobro a activar al crear (precio se congela del catálogo) ---
+    addon_ids = fields.Many2many(
+        'in_agenda.addon', string='Add-ons a activar',
+        domain=[('active', '=', True)],
+        help='Add-ons de pago que se activan desde el inicio de la '
+             'suscripción. Más tarde puedes activar otros por fechas.')
+
+    @api.depends('duracion', 'ciclo_facturacion')
+    def _compute_duracion_meses_total(self):
+        for rec in self:
+            factor = 12 if rec.ciclo_facturacion == 'anual' else 1
+            rec.duracion_meses_total = max(1, rec.duracion) * factor
+
+    @api.onchange('ciclo_facturacion')
+    def _onchange_ciclo_facturacion(self):
+        # Al cambiar el ciclo, la duración vuelve a 1 período (1 mes o 1 año),
+        # porque la unidad cambió.
+        self.duracion = 1
 
     # --- Catálogo de servicios habilitados ---
     servicio_ids = fields.Many2many(
@@ -154,12 +190,12 @@ class InAgendaTenantWizard(models.TransientModel):
                     'El password debe tener al menos 8 caracteres.'
                 )
 
-    @api.constrains('duracion_meses')
+    @api.constrains('duracion')
     def _check_duracion(self):
         for rec in self:
-            if rec.duracion_meses < 1:
+            if rec.duracion < 1:
                 raise ValidationError(
-                    'La duración debe ser al menos 1 mes.'
+                    'La duración debe ser al menos 1 (período).'
                 )
 
     # ------------------------------------------------------------------
@@ -255,16 +291,28 @@ class InAgendaTenantWizard(models.TransientModel):
             'tz': self.timezone,
         })
 
-        # 6. Crear la suscripción
-        fecha_fin = self.fecha_inicio + relativedelta(months=self.duracion_meses)
+        # 6. Crear la suscripción (duración interpretada según el ciclo:
+        #    meses si mensual, años si anual)
+        fecha_fin = self.fecha_inicio + relativedelta(months=self.duracion_meses_total)
         suscripcion = self.env['in_agenda.suscripcion'].sudo().create({
             'company_id': company.id,
             'plan_id': self.plan_id.id,
             'fecha_inicio': self.fecha_inicio,
             'fecha_fin': fecha_fin,
+            'ciclo_facturacion': self.ciclo_facturacion,
             'ai_margin_pct': self.plan_id.ai_margin_pct_default,
             'state': self.state_inicial,
+            'facturacion_sri_habilitada': self.facturacion_sri_habilitada,
         })
+
+        # 5.1 Activar los add-ons seleccionados desde el inicio de la
+        #     suscripción (el precio se congela del catálogo en el create).
+        for addon in self.addon_ids:
+            self.env['in_agenda.suscripcion.addon'].sudo().create({
+                'suscripcion_id': suscripcion.id,
+                'addon_id': addon.id,
+                'fecha_inicio': self.fecha_inicio,
+            })
 
         # 6.1 Asignar los servicios habilitados al tenant (catálogo Innatum)
         if self.servicio_ids:
