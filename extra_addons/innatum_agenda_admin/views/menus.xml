@@ -32,4 +32,13 @@
               sequence="30"
               groups="innatum_agenda_core.innatum_agenda_group_admin"/>
 
+    <!-- Reubica "Configuración" (definida en core, antes bajo el menú
+         principal "Agendamiento") hacia "Mi Negocio". Arrastra sus hijos:
+         Servicios y Horarios de trabajo. Es un override del parent del menú
+         existente; se hace aquí (admin) porque core no conoce "Mi Negocio". -->
+    <menuitem id="innatum_agenda_core.innatum_agenda_menu_config"
+              name="Configuración"
+              parent="innatum_agenda_admin_menu_root"
+              sequence="40"/>
+
 </odoo>

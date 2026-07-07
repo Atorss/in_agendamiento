@@ -126,4 +126,42 @@
         <field name="target">new</field>
     </record>
 
+    <!-- Wizard: cambiar el horario de trabajo (resource.calendar) del colaborador -->
+    <record id="view_in_agenda_colaborador_horario_wizard_form" model="ir.ui.view">
+        <field name="name">in_agenda.colaborador.horario.wizard.form</field>
+        <field name="model">in_agenda.colaborador.horario.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Horario del colaborador">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Horario de trabajo</h1>
+                        <p class="text-muted">
+                            Asigná el horario semanal de atención de este
+                            colaborador. Determina su disponibilidad cuando la
+                            empresa opera en modo de agenda directa. Podés
+                            reutilizar un horario o crear uno nuevo.
+                        </p>
+                    </div>
+                    <group>
+                        <field name="employee_id" invisible="1"/>
+                        <field name="resource_calendar_id"
+                               options="{'no_quick_create': True}"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Guardar" type="object"
+                            name="action_aplicar" class="btn-primary"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_in_agenda_colaborador_horario_wizard" model="ir.actions.act_window">
+        <field name="name">Cambiar horario</field>
+        <field name="res_model">in_agenda.colaborador.horario.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
 </odoo>

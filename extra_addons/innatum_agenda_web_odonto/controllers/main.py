@@ -53,8 +53,8 @@ class OdontoWebController(http.Controller):
                 int(interes_raw)
             ).exists()
             # Garantía multi-tenant: el servicio elegido debe pertenecer
-            # al catálogo de este tenant.
-            if servicio and company.id not in servicio.company_ids.ids:
+            # a este tenant.
+            if servicio and servicio.company_id != company:
                 servicio = request.env['innatum.agenda.servicio'].sudo().browse()
         interes_label = servicio.name if servicio else interes_raw
 

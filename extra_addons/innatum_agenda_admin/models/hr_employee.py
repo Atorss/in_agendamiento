@@ -193,3 +193,26 @@ class HrEmployee(models.Model):
             'target': 'new',
             'context': {'default_employee_id': self.id},
         }
+
+
+class HrEmployeePublic(models.Model):
+    """Expone en el perfil PÚBLICO del empleado los campos de rol/permiso de
+    Agenda.
+
+    Motivo: hr.employee._check_private_fields considera "privado" (y lanza
+    AccessError) cualquier campo que NO exista en hr.employee.public. Como
+    'innatum_agenda_rol' y 'puede_planificar' son campos almacenados, cuando
+    un usuario no-HR lee CUALQUIER campo de otro empleado (p.ej. avatar_128 o
+    display_name vía prefetch), estos entran en el lote de lectura y disparan
+    el error. Exponerlos aquí (igual que 'servicio_ids') los vuelve legibles
+    y elimina el error en toda la app (turnos, derivaciones, kanban, etc.).
+    Son de solo lectura y su valor real sigue viviendo en hr.employee.
+    """
+    _inherit = 'hr.employee.public'
+
+    innatum_agenda_rol = fields.Selection(
+        related='employee_id.innatum_agenda_rol', string='Rol en Agenda',
+        readonly=True)
+    puede_planificar = fields.Boolean(
+        related='employee_id.puede_planificar',
+        string='Puede crear su planificación', readonly=True)

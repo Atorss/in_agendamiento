@@ -47,25 +47,35 @@
          request.website.company_id porque corren con .sudo().
          ============================================================ -->
 
-    <!-- Servicio es catálogo centralizado: el admin del tenant ve solo
-         los servicios que Innatum le habilitó (company_ids contiene su
-         company). El bypass de base.group_system permite a Innatum
-         (admin del sistema) ver TODO el catálogo y crear servicios
-         sin tenants aún asignados.
-
-         El bypass va DIRECTO en el XML aquí (no vía migration de planes)
-         porque base.group_system siempre existe en Odoo y se necesita
-         para que el admin pueda crear servicios al inicio. -->
+    <!-- Servicio es POR TENANT: cada empresa administra sus propios
+         servicios. El admin del tenant ve y gestiona solo los de su(s)
+         company(s) (company_id en sus allowed companies). El bypass de
+         base.group_system permite a Innatum (admin del sistema) ver TODOS
+         los servicios de todos los tenants. -->
     <record id="rule_servicio_multi_company" model="ir.rule">
         <field name="name">Servicio: aislamiento por tenant</field>
         <field name="model_id" ref="model_innatum_agenda_servicio"/>
         <field name="global" eval="True"/>
-        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_ids', 'in', company_ids)]</field>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_id', 'in', company_ids)]</field>
     </record>
 
     <record id="rule_turno_multi_company" model="ir.rule">
         <field name="name">Turno: aislamiento por tenant</field>
         <field name="model_id" ref="model_innatum_agenda_turno"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_bloqueo_multi_company" model="ir.rule">
+        <field name="name">Bloqueo: aislamiento por tenant</field>
+        <field name="model_id" ref="model_innatum_agenda_bloqueo"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_calendario_multi_company" model="ir.rule">
+        <field name="name">Calendario unificado: aislamiento por tenant</field>
+        <field name="model_id" ref="model_innatum_agenda_calendario"/>
         <field name="global" eval="True"/>
         <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_id', 'in', company_ids)]</field>
     </record>
@@ -134,13 +144,92 @@
         <field name="perm_unlink" eval="True"/>
     </record>
 
-    <!-- Usuario: solo sus turnos -->
+    <!-- Usuario: sus turnos (donde atiende) + las derivaciones que originó -->
     <record id="rule_turno_user_own" model="ir.rule">
         <field name="name">Turno: usuario ve solo los suyos</field>
         <field name="model_id" ref="model_innatum_agenda_turno"/>
+        <field name="domain_force">['|',
+            ('professional_id.user_id', '=', user.id),
+            ('derivado_por_id.user_id', '=', user.id),
+        ]</field>
+        <field name="groups" eval="[(4, ref('innatum_agenda_group_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- ============================================================
+         Record Rule para innatum.agenda.bloqueo
+         ============================================================ -->
+
+    <!-- Bloqueos son PERSONALES: cada profesional crea/ve/edita solo los
+         SUYOS. A diferencia de los turnos, NO hay regla "operator/admin ve
+         todo": aquí ni el admin del tenant edita bloqueos ajenos (no tiene
+         lógica que gestione las reuniones/ausencias de otro).
+
+         La regla se aplica a innatum_agenda_group_user; como Operador y
+         Admin implican Usuario, también quedan restringidos a lo suyo.
+         Innatum (base.group_system) no es miembro de estos grupos, así que
+         solo le aplica la regla global de company (ve todo). -->
+    <record id="rule_bloqueo_user_own" model="ir.rule">
+        <field name="name">Bloqueo: cada profesional solo los suyos</field>
+        <field name="model_id" ref="model_innatum_agenda_bloqueo"/>
         <field name="domain_force">[
             ('professional_id.user_id', '=', user.id),
         ]</field>
+        <field name="groups" eval="[(4, ref('innatum_agenda_group_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- ============================================================
+         Record Rules para innatum.agenda.turno.propuesta
+         (horarios propuestos de una derivación)
+         ============================================================ -->
+
+    <!-- Aislamiento por tenant (global, bypass sistema) -->
+    <record id="rule_turno_propuesta_multi_company" model="ir.rule">
+        <field name="name">Propuesta: aislamiento por tenant</field>
+        <field name="model_id" ref="model_innatum_agenda_turno_propuesta"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('derivacion_id.company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- Operador/Admin: ven todas las del tenant -->
+    <record id="rule_turno_propuesta_operator_all" model="ir.rule">
+        <field name="name">Propuesta: operador ve todas</field>
+        <field name="model_id" ref="model_innatum_agenda_turno_propuesta"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('innatum_agenda_group_operator'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- Usuario: solo propuestas de sus derivaciones (atiende o derivó) -->
+    <record id="rule_turno_propuesta_user_own" model="ir.rule">
+        <field name="name">Propuesta: usuario ve donde participa</field>
+        <field name="model_id" ref="model_innatum_agenda_turno_propuesta"/>
+        <field name="domain_force">['|',
+            ('derivacion_id.professional_id.user_id', '=', user.id),
+            ('derivacion_id.derivado_por_id.user_id', '=', user.id),
+        ]</field>
+        <field name="groups" eval="[(4, ref('innatum_agenda_group_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- Filtro del calendario: cada usuario solo ve/gestiona los suyos -->
+    <record id="rule_calendario_filtro_own" model="ir.rule">
+        <field name="name">Filtro calendario: solo los propios</field>
+        <field name="model_id" ref="model_innatum_agenda_calendario_filtro"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
         <field name="groups" eval="[(4, ref('innatum_agenda_group_user'))]"/>
         <field name="perm_read" eval="True"/>
         <field name="perm_write" eval="True"/>

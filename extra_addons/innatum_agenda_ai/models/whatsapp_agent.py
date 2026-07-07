@@ -9,8 +9,9 @@ import json
 import logging
 import re
 import unicodedata
+from datetime import datetime, timedelta
 from odoo import api, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 from .cedula_validator import validate_ec_cedula, extract_cedula
 
@@ -32,18 +33,25 @@ _RE_PERIODO = re.compile(r'^periodo:(AM|PM|NIGHT):([^:]+):(\d{4}-\d{2}-\d{2})$')
 _RE_SERVICIO = re.compile(r'^servicio:(.+)$')
 _RE_FECHA = re.compile(r'^fecha:(\d{4}-\d{2}-\d{2})$')
 _RE_TURNO = re.compile(r'^turno:(\d+)$')
+# Modo de agenda directa: el horario aún no es un turno; el botón lleva el
+# token opaco 'D|prof|iso' devuelto por find_availability.
+_RE_SLOT = re.compile(r'^slot:(D\|.+)$')
 _RE_MENU = re.compile(r'^menu:(.+)$')
 _RE_IDENT = re.compile(r'^ident:(yes|no)(?::(\d+))?$')
 _RE_CANCEL = re.compile(r'^cancel_turno:(\d+)$')
 _RE_CONFIRM_CANCEL = re.compile(r'^confirm_cancel:(\d+)$')
 _RE_INFO_TURNO = re.compile(r'^info_turno:(\d+)$')
 _RE_BOOK_FOR = re.compile(r'^book_for:(self|other)$')
+_RE_DP_DERIV = re.compile(r'^dp_deriv:(\d+)$')
+_RE_DP_PROP = re.compile(r'^dp_prop:(\d+)$')
+_RE_DP_CONFIRM = re.compile(r'^dp_confirm:(\d+)$')
 
 # Regex genérico para detectar IDs de botón. Si el texto del cliente matchea,
 # saltamos los pre-filtros anti-basura (los botones son texto corto válido).
 _RE_ANY_BUTTON_ID = re.compile(
     r'^(?:periodo|servicio|fecha|turno|menu|ident|cancel_turno|'
-    r'confirm_cancel|info_turno|book_for):'
+    r'confirm_cancel|info_turno|book_for|dp_deriv|dp_prop|dp_confirm|'
+    r'dp_menu):'
 )
 # Detección de "solo emojis / símbolos sin sustancia" para pre-filtro.
 # Una palabra "sustantiva" requiere al menos una letra o dígito.
@@ -94,6 +102,21 @@ class WhatsappAgent(models.AbstractModel):
                     'skip_send': True,
                     'fast_path': 'dup_wamid',
                 }
+
+        # ====================================================================
+        # ROUTER DE ACTORES (Fase 2): si el número pertenece a un empleado
+        # activo del tenant, la conversación es de STAFF y la maneja el
+        # agente determinista (sin LLM, sin throttle ni pre-filtros de
+        # pacientes). La dedup por wamid ya corrió arriba.
+        # ====================================================================
+        if session.ensure_actor() == 'staff':
+            session.append_message(
+                role='user',
+                content=text or f'[{message_type}:{media_id}]',
+                wamid=wamid,
+            )
+            return self.env['innatum.whatsapp.staff.agent'] \
+                .process_staff_message(session, text)
 
         # ====================================================================
         # CAPAS ANTI-ABUSO (cooldown → rate limit → pre-filtros). Ordenadas
@@ -548,6 +571,30 @@ class WhatsappAgent(models.AbstractModel):
         text = text.strip()
         Primitives = self.env['innatum.agenda.scheduling.primitives']
 
+        # === Fase 2: el paciente elige horario de su derivación ===
+        m = _RE_DP_DERIV.match(text)
+        if m:
+            deriv = self.env['innatum.agenda.turno'].sudo().browse(
+                int(m.group(1))).exists()
+            if deriv and deriv.state == 'propuesto' \
+                    and self._dp_autorizado(session, deriv):
+                return self._dp_show_propuestas(session, deriv)
+            return self._text_response(
+                session, 'Esa derivación ya no está disponible. Escribe '
+                         '*hola* para ver tus opciones actualizadas.')
+        m = _RE_DP_PROP.match(text)
+        if m:
+            return self._dp_ask_confirm(session, int(m.group(1)))
+        m = _RE_DP_CONFIRM.match(text)
+        if m:
+            return self._dp_elegir(session, int(m.group(1)))
+        if text == 'dp_menu:back':
+            if session.partner_id:
+                return self._show_main_menu(session, session.partner_id,
+                                            skip_derivacion=True)
+            return self._text_response(
+                session, 'Listo. Escribe *hola* si necesitas algo más.')
+
         # === servicio:CODE → mostrar régimen + fechas próximas ===
         m = _RE_SERVICIO.match(text)
         if m:
@@ -622,7 +669,21 @@ class WhatsappAgent(models.AbstractModel):
                 session.id, turno_id, session.partner_id.id or None,
             )
             session.pending_turno_id = turno_id
+            session.pending_slot_token = False
             return self._ask_who_is_patient(session, turno)
+
+        # === slot:TOKEN → modo directo: igual que turno:N pero el turno aún
+        #     no existe; guardamos el token del slot (se crea al reservar). ===
+        m = _RE_SLOT.match(text)
+        if m:
+            token = m.group(1)
+            _logger.info(
+                'Fast-path slot (directo): session=%s token=%s',
+                session.id, token,
+            )
+            session.pending_slot_token = token
+            session.pending_turno_id = False
+            return self._ask_who_is_patient(session, None, slot_token=token)
 
         # === book_for:self|other → bifurcación paciente ===
         m = _RE_BOOK_FOR.match(text)
@@ -1076,13 +1137,62 @@ class WhatsappAgent(models.AbstractModel):
             return next(iter(matches))
         return None
 
-    def _ask_who_is_patient(self, session, turno):
+    def _slot_btn_id(self, s):
+        """Id del botón/fila de un slot. En modo directo el slot todavía no es
+        un turno: usa 'slot:TOKEN'. En planificada, 'turno:ID'."""
+        tid = s.get('turno_id')
+        if isinstance(tid, str) and tid.startswith('D|'):
+            return 'slot:%s' % tid
+        return 'turno:%s' % tid
+
+    def _ask_who_is_patient(self, session, turno, slot_token=None):
         """Pregunta si la reserva es para el cliente o para otra persona.
 
-        Llamado tras tap `turno:N`. Muestra 2 botones: book_for:self,
-        book_for:other. Guarda pending_turno_id para retomar tras la decisión.
+        Llamado tras tap `turno:N` (modo planificada, `turno` es un registro)
+        o `slot:TOKEN` (modo directo, `turno` es None y viene `slot_token`).
+        Muestra 2 botones: book_for:self, book_for:other.
         """
         session.action_set_state('confirmando_paciente')
+        import pytz
+        fecha_str = ''
+        servicio_nombre = ''
+        if slot_token:
+            # Modo directo: derivar servicio (del code en curso) y fecha (del token)
+            if session.current_servicio_code:
+                s = self.env['innatum.agenda.servicio'].sudo().search([
+                    ('code', '=', session.current_servicio_code),
+                    ('company_id', '=', session.company_id.id),
+                ], limit=1)
+                servicio_nombre = (s.name or '').strip() if s else ''
+            try:
+                from datetime import datetime as _dt
+                _, _prof, _iso = slot_token.split('|', 2)
+                dt = _dt.strptime(_iso, '%Y-%m-%dT%H:%M:%S')
+                tz = pytz.timezone('America/Guayaquil')
+                fecha_str = pytz.UTC.localize(dt).astimezone(tz).strftime('%d/%m %H:%M')
+            except Exception:
+                fecha_str = ''
+            partes = [p for p in [servicio_nombre, fecha_str] if p]
+            contexto = (' — ' + ' · '.join(partes)) if partes else ''
+            body = f'¿Esta cita es para ti o para otra persona?{contexto}'
+            payload = self._payload_buttons(
+                session.wa_from,
+                header='👤 ¿Quién es el paciente?',
+                body=body,
+                buttons=[
+                    {'id': 'book_for:self', 'title': '✅ Es para mí'},
+                    {'id': 'book_for:other', 'title': '👤 Para otra persona'},
+                ],
+            )
+            session.append_message(role='assistant', content=body)
+            return {
+                'response_text': body,
+                'session_state': session.state,
+                'tool_calls': [],
+                'meta_payload': payload,
+                '_rdcm_warnings': [],
+                'fast_path': 'ask_who_is_patient',
+            }
         try:
             servicio_nombre = (turno.servicio_id.name or '').strip()
         except Exception:
@@ -1092,7 +1202,6 @@ class WhatsappAgent(models.AbstractModel):
         fecha_str = ''
         try:
             if turno.date_start:
-                import pytz
                 tz = pytz.timezone('America/Guayaquil')
                 dt_local = pytz.UTC.localize(turno.date_start).astimezone(tz)
                 fecha_str = dt_local.strftime('%d/%m %H:%M')
@@ -1128,13 +1237,17 @@ class WhatsappAgent(models.AbstractModel):
 
         Usado por book_for:self y al final del sub-flujo de tercero.
         """
-        if not session.pending_turno_id:
+        if session.pending_slot_token:
+            # Modo directo: el "turno_id" es un token; el turno se crea al reservar.
+            turno_id = session.pending_slot_token
+        elif session.pending_turno_id:
+            turno_id = session.pending_turno_id.id
+        else:
             return self._text_response(
                 session,
                 '⚠️ No tengo un turno pendiente para reservar. '
                 'Por favor elige un horario.',
             )
-        turno_id = session.pending_turno_id.id
         result = self.env['flow.scheduling.tools'].sudo().reservar_turno(
             {
                 'turno_id': turno_id,
@@ -1148,6 +1261,7 @@ class WhatsappAgent(models.AbstractModel):
             return self._text_response(session, f'⚠️ {err}')
         # Limpiar cualquier dato pendiente del sub-flujo de tercero
         session.pending_third_party_cedula = False
+        session.pending_slot_token = False
         lines = ['✅ Cita reservada', '']
         if result.get('paciente'):
             lines.append(f"👤 Paciente: {result['paciente']}")
@@ -1272,10 +1386,14 @@ class WhatsappAgent(models.AbstractModel):
             ('company_id', '=', self.env.company.id),
         ]))
 
-    def _show_main_menu(self, session, partner):
+    def _show_main_menu(self, session, partner, skip_derivacion=False):
         """Saludo personalizado + menú principal (1 o 4 opciones según
         si tiene citas activas).
         """
+        if not skip_derivacion:
+            deriv_offer = self._maybe_offer_derivacion(session, partner)
+            if deriv_offer:
+                return deriv_offer
         session.action_set_state('menu_principal')
         has_active = self._has_active_appointments(partner)
         nombre = partner.name.split(' ')[0] if partner.name else 'cliente'
@@ -1328,6 +1446,176 @@ class WhatsappAgent(models.AbstractModel):
             '_rdcm_warnings': [],
             'fast_path': 'menu_main',
         }
+
+    # ------------------------------------------------------------------
+    # Fase 2: elección de horario de derivación por el paciente
+    # ------------------------------------------------------------------
+
+    def _derivaciones_para_elegir(self, session, partner):
+        """Derivaciones en 'propuesto' cuyo paciente es quien escribe
+        (por partner de sesión, o por match del celular)."""
+        Turno = self.env['innatum.agenda.turno'].sudo()
+        dom = [
+            ('company_id', '=', session.company_id.id),
+            ('es_derivacion', '=', True),
+            ('state', '=', 'propuesto'),
+        ]
+        if partner:
+            return Turno.search(dom + [('partner_id', '=', partner.id)])
+        Outbound = self.env['innatum.wa.outbound']
+        return Turno.search(dom).filtered(
+            lambda t: Outbound.normalize_ec_number(
+                t.partner_id.mobile or t.partner_id.phone)
+            == session.wa_from)
+
+    def _dp_autorizado(self, session, deriv):
+        """El remitente debe ser el paciente de la derivación: por partner
+        de sesión o por match del celular. Evita que un tercero adivine IDs
+        y confirme/queme derivaciones ajenas."""
+        if not deriv:
+            return False
+        return deriv in self._derivaciones_para_elegir(
+            session, session.partner_id)
+
+    def _maybe_offer_derivacion(self, session, partner):
+        """Si el paciente tiene derivaciones con horarios por elegir, se
+        ofrecen ANTES del menú normal. Devuelve None si no aplica."""
+        derivs = self._derivaciones_para_elegir(session, partner)
+        if not derivs:
+            return None
+        if len(derivs) == 1:
+            return self._dp_show_propuestas(session, derivs)
+        rows = [{
+            'id': 'dp_deriv:%d' % d.id,
+            'title': (d.servicio_id.name or 'Derivación')[:24],
+            'description': 'con %s' % (d.professional_id.name or '-'),
+        } for d in derivs[:10]]
+        body = ('Tienes %d derivaciones con horarios listos para elegir. '
+                '¿Cuál agendamos primero?') % len(derivs)
+        payload = self._payload_list(
+            session.wa_from, header='🩺 Tus derivaciones', body=body,
+            button_text='Ver derivaciones',
+            sections=[{'title': 'Por agendar', 'rows': rows}])
+        session.append_message(role='assistant', content=body)
+        return {
+            'response_text': body,
+            'session_state': session.state,
+            'tool_calls': [],
+            'meta_payload': payload,
+            'fast_path': 'dp_offer',
+        }
+
+    def _dp_show_propuestas(self, session, deriv, aviso=None):
+        props = deriv.propuesta_ids.sorted('date_start')
+        if not props:
+            return self._text_response(session, (
+                'Esa derivación aún no tiene horarios disponibles. '
+                'Te avisaremos por aquí cuando estén listos.'))
+        rows = [{
+            'id': 'dp_prop:%d' % p.id,
+            'title': self._fmt_dt_ec(p.date_start),
+            'description': '',
+        } for p in props[:10]]
+        body = ('%s te derivó con *%s* para *%s*. Estos son los horarios '
+                'disponibles — elige el que prefieras:') % (
+            deriv.derivado_por_id.name or 'Tu doctor',
+            deriv.professional_id.name or '-',
+            deriv.servicio_id.name or '-')
+        if aviso:
+            body = aviso + '\n' + body
+        payload = self._payload_list(
+            session.wa_from, header='📅 Elige tu horario', body=body,
+            button_text='Ver horarios',
+            sections=[{'title': 'Horarios', 'rows': rows}])
+        session.append_message(role='assistant', content=body)
+        return {
+            'response_text': body,
+            'session_state': session.state,
+            'tool_calls': [],
+            'meta_payload': payload,
+            'fast_path': 'dp_propuestas',
+        }
+
+    def _dp_ask_confirm(self, session, prop_id):
+        prop = self.env['innatum.agenda.turno.propuesta'].sudo().browse(
+            prop_id).exists()
+        deriv = prop.derivacion_id if prop else False
+        if not prop or not deriv or deriv.state != 'propuesto':
+            return self._text_response(
+                session, 'Esa opción ya no está disponible. Escribe *hola* '
+                         'para ver tus opciones actualizadas.')
+        if not self._dp_autorizado(session, deriv):
+            return self._text_response(
+                session, 'Esa opción ya no está disponible. Escribe *hola* '
+                         'para ver tus opciones actualizadas.')
+        body = '%s con %s — %s. ¿Confirmamos?' % (
+            deriv.servicio_id.name or 'Cita',
+            deriv.professional_id.name or '-',
+            self._fmt_dt_ec(prop.date_start))
+        payload = self._payload_buttons(
+            session.wa_from, header='🗓️ Confirmar cita', body=body,
+            buttons=[
+                {'id': 'dp_confirm:%d' % prop.id, 'title': '✅ Confirmar'},
+                {'id': 'dp_menu:back', 'title': '✖ Volver'},
+            ])
+        session.append_message(role='assistant', content=body)
+        return {
+            'response_text': body,
+            'session_state': session.state,
+            'tool_calls': [],
+            'meta_payload': payload,
+            'fast_path': 'dp_confirmar',
+        }
+
+    def _dp_elegir(self, session, prop_id):
+        prop = self.env['innatum.agenda.turno.propuesta'].sudo().browse(
+            prop_id).exists()
+        deriv = prop.derivacion_id if prop else False
+        if not prop or not deriv or deriv.state != 'propuesto':
+            return self._text_response(
+                session, 'Esa opción ya no está disponible. Escribe *hola* '
+                         'para ver tus opciones actualizadas.')
+        if not self._dp_autorizado(session, deriv):
+            return self._text_response(
+                session, 'Esa opción ya no está disponible. Escribe *hola* '
+                         'para ver tus opciones actualizadas.')
+        try:
+            # Savepoint: si action_elegir() falla a mitad de camino (la
+            # constraint de solape se dispara dentro del write()), el ORM
+            # deja el turno con cambios "sucios" en caché (date_start/state)
+            # que romperían la siguiente operación (unlink de propuestas).
+            # El savepoint hace rollback también de esa caché al salir con
+            # excepción.
+            with self.env.cr.savepoint():
+                prop.action_elegir()
+        except (ValidationError, UserError):
+            # Slot robado: la constraint de solape del turno rechaza la
+            # fecha. Re-listar las propuestas que sigan vigentes.
+            restantes = deriv.propuesta_ids.filtered(
+                lambda p: p.id != prop.id)
+            if restantes:
+                prop.unlink()
+                return self._dp_show_propuestas(session, deriv, aviso=(
+                    '⚠️ Ese horario acaba de ocuparse. Estas opciones '
+                    'siguen disponibles:'))
+            deriv.propuesta_ids.unlink()
+            deriv.state = 'derivado'
+            deriv.message_post(body=(
+                'El horario elegido por el paciente ya estaba ocupado y no '
+                'quedaban otras propuestas: la derivación vuelve a "por '
+                'agendar" y se avisó al colaborador por WhatsApp.'))
+            deriv._notificar_repropuesta_necesaria()
+            return self._text_response(session, (
+                '⚠️ Ese horario acaba de ocuparse y no quedan otras '
+                'opciones. Le avisamos a %s para que proponga nuevos '
+                'horarios; te llegará otro mensaje cuando estén listos.'
+            ) % (deriv.professional_id.name or '-'))
+        body = ('🎉 ¡Listo! Tu cita quedó agendada: *%s* con *%s*, %s. '
+                'Te esperamos.') % (
+            deriv.servicio_id.name or '-',
+            deriv.professional_id.name or '-',
+            self._fmt_dt_ec(deriv.date_start))
+        return self._text_response(session, body)
 
     def _start_agendar_flow(self, session):
         """Cliente eligió 'Agendar' → mostrar lista de servicios."""
@@ -1756,7 +2044,7 @@ class WhatsappAgent(models.AbstractModel):
                         'title': period_label,
                         'rows': [
                             {
-                                'id': f"turno:{s['turno_id']}",
+                                'id': self._slot_btn_id(s),
                                 'title': s['hora'],
                                 'description': f"con {s['professional']}",
                             }
@@ -1778,7 +2066,7 @@ class WhatsappAgent(models.AbstractModel):
                             'title': label,
                             'rows': [
                                 {
-                                    'id': f"turno:{s['turno_id']}",
+                                    'id': self._slot_btn_id(s),
                                     'title': s['hora'],
                                     'description': f"con {s['professional']}",
                                 }
@@ -1804,7 +2092,7 @@ class WhatsappAgent(models.AbstractModel):
                     'title': 'Próximos turnos',
                     'rows': [
                         {
-                            'id': f"turno:{s['turno_id']}",
+                            'id': self._slot_btn_id(s),
                             'title': f"{s['fecha'][:12]} {s['hora']}",
                             'description': f"con {s['professional']}",
                         }
@@ -1821,6 +2109,20 @@ class WhatsappAgent(models.AbstractModel):
             return None
 
         return None
+
+    # Formateo de fechas para WhatsApp (Ecuador continental: UTC-5 fijo).
+    _DIAS_ES = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
+    _MESES_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
+                 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+    @api.model
+    def _fmt_dt_ec(self, dt):
+        """'mié 15 jul · 10:00' en hora de Ecuador (UTC-5, sin DST).
+        `dt` es naive UTC (convención de Odoo)."""
+        local = dt - timedelta(hours=5)
+        return '%s %d %s · %02d:%02d' % (
+            self._DIAS_ES[local.weekday()], local.day,
+            self._MESES_ES[local.month - 1], local.hour, local.minute)
 
     def _payload_buttons(self, wa_to, header, body, buttons):
         """Construye payload Meta type=interactive button (max 3 botones)."""

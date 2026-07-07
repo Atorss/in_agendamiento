@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         Aislamiento multi-tenant de los horarios de trabajo
+         (resource.calendar) y sus líneas (resource.calendar.attendance).
+
+         En modo 'directa' la disponibilidad de cada profesional se calcula
+         desde su resource_calendar_id. El admin del tenant puede crear y
+         asignar horarios, PERO solo debe ver/editar los de SU(S) empresa(s).
+         Sin esto, un admin con permiso de escritura podría editar el
+         calendario de otro tenant (fuga entre empresas).
+
+         Reglas GLOBALES (AND ineludible) con bypass para el admin del
+         sistema (Innatum), que gestiona todas las empresas.
+         ================================================================ -->
+
+    <record id="rule_resource_calendar_multi_company" model="ir.rule">
+        <field name="name">Horario de trabajo: aislamiento por tenant</field>
+        <field name="model_id" ref="resource.model_resource_calendar"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_resource_calendar_attendance_multi_company" model="ir.rule">
+        <field name="name">Línea de horario: aislamiento por tenant</field>
+        <field name="model_id" ref="resource.model_resource_calendar_attendance"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('base.group_system') else [('calendar_id.company_id', 'in', company_ids)]</field>
+    </record>
+
+</odoo>

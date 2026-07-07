@@ -22,6 +22,7 @@
                             <field name="domain_scheme"/>
                             <field name="base_domain"/>
                             <field name="vertical"/>
+                            <field name="agenda_modo"/>
                             <field name="country_id"/>
                             <field name="currency_id"/>
                             <field name="timezone"/>
@@ -67,11 +68,6 @@
                         <field name="addon_ids" nolabel="1" colspan="2"
                                widget="many2many_tags"
                                options="{'no_create': True, 'color_field': 'sequence'}"/>
-                    </group>
-                    <group string="Servicios habilitados para este tenant">
-                        <field name="servicio_ids" nolabel="1"
-                               widget="many2many_tags"
-                               options="{'no_create': True}"/>
                     </group>
                 </sheet>
                 <footer>

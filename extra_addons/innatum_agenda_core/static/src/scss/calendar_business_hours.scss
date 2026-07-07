@@ -1,0 +1,6 @@
+// Sombreado del fondo del calendario fuera del horario laboral del profesional
+// logueado. FullCalendar marca esas celdas con .fc-non-business; le damos un
+// gris tenue para que las horas trabajadas (en blanco) resalten a simple vista.
+.fc .fc-non-business {
+    background: rgba(140, 140, 140, 0.14);
+}

@@ -14,7 +14,7 @@
     'author': 'Innatum',
     'website': 'https://www.innatum.com',
     'category': 'Services',
-    'version': '18.0.1.5.0',
+    'version': '18.0.1.7.0',
     'depends': [
         'innatum_agenda_core',
         'hr',
@@ -25,8 +25,10 @@
     'data': [
         'security/innatum_agenda_admin_groups.xml',
         'security/ir.model.access.csv',
+        'security/resource_calendar_rules.xml',
         'wizard/wizard_set_password_views.xml',
         'views/hr_employee_views.xml',
+        'views/resource_calendar_views.xml',
         'views/hr_employee_colaborador_planif_inherit.xml',
         'views/hr_employee_public_views.xml',
         'views/res_company_views.xml',

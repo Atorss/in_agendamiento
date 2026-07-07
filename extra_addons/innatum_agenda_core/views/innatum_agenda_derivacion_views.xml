@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         Derivaciones: se manejan como turnos (innatum.agenda.turno) en el
+         estado 'derivado'. Vistas y menú propios para gestionarlas aparte.
+         ================================================================ -->
+
+    <!-- FORM de derivación -->
+    <record id="innatum_agenda_derivacion_view_form" model="ir.ui.view">
+        <field name="name">innatum.agenda.turno.derivacion.form</field>
+        <field name="model">innatum.agenda.turno</field>
+        <!-- Prioridad alta (menor precedencia): NO debe ser el form por
+             defecto del modelo. El form por defecto es el del turno normal
+             (con todos los botones). Esta vista solo se usa cuando la acción
+             Derivaciones o el wizard la fijan explícitamente. -->
+        <field name="priority">32</field>
+        <field name="arch" type="xml">
+            <form string="Derivación">
+                <header>
+                    <button name="action_planificar_propuestas" type="object"
+                            string="Planificar en calendario" icon="fa-calendar"
+                            class="btn-primary"
+                            invisible="state != 'derivado' or not professional_id or not servicio_id"/>
+                    <button name="action_confirmar_derivacion" type="object"
+                            string="Confirmar derivación" icon="fa-paper-plane"
+                            class="btn-success"
+                            invisible="state != 'derivado' or propuesta_count == 0"/>
+                    <button name="action_cancel" type="object" string="Cancelar"
+                            class="btn-secondary"
+                            invisible="state not in ('derivado', 'propuesto')"
+                            confirm="¿Cancelar esta derivación?"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="derivado,propuesto,reserved,confirmed,done"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Cancelada"
+                            bg_color="text-bg-danger"
+                            invisible="state != 'cancelled'"/>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Derivación">
+                            <field name="es_derivacion" invisible="1"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="propuesta_count" invisible="1"/>
+                            <field name="derivado_por_id" readonly="1"
+                                   options="{'no_create': True}"/>
+                            <!-- Sin widget many2one_avatar_employee: leería
+                                 avatar_128 de OTRO empleado y un usuario no-HR
+                                 dispara el guard de campos privados de
+                                 hr.employee (innatum_agenda_rol/puede_planificar).
+                                 Many2one normal solo lee display_name. -->
+                            <field name="professional_id"
+                                   string="Atiende (colaborador)"
+                                   domain="[('id', '!=', derivado_por_id)]"
+                                   options="{'no_create': True}"
+                                   readonly="state != 'derivado'"/>
+                            <field name="servicio_id" string="Servicio"
+                                   domain="[('operador_ids', 'in', professional_id)]"
+                                   options="{'no_create': True}"
+                                   required="1"
+                                   readonly="state != 'derivado'"/>
+                        </group>
+                        <group string="Cliente">
+                            <field name="partner_id"
+                                   options="{'no_create': True}"
+                                   readonly="state != 'derivado'"/>
+                            <field name="client_phone" widget="phone"/>
+                            <field name="turno_origen_id" readonly="1"
+                                   invisible="not turno_origen_id"/>
+                            <field name="date_start" string="Horario agendado"
+                                   readonly="1"
+                                   invisible="state == 'derivado'"/>
+                        </group>
+                    </group>
+                    <group string="Motivo">
+                        <field name="motivo_derivacion" nolabel="1"
+                               readonly="state != 'derivado'"
+                               placeholder="Por qué derivás a este cliente..."/>
+                    </group>
+                    <group string="Horarios propuestos"
+                           invisible="state not in ('derivado', 'propuesto')">
+                        <field name="propuesta_ids" nolabel="1"
+                               domain="[('tipo', '=', 'propuesta')]"
+                               context="{'default_derivacion_id': id, 'default_tipo': 'propuesta'}"
+                               readonly="state != 'derivado'">
+                            <list editable="bottom" string="Propuestas">
+                                <field name="date_start"/>
+                                <field name="date_end" readonly="1"/>
+                                <button name="action_elegir" type="object"
+                                        string="Crear turno con este horario"
+                                        class="btn-primary" icon="fa-check-circle"
+                                        invisible="parent.state != 'propuesto'"/>
+                            </list>
+                        </field>
+                    </group>
+                    <!-- Paso 1: B propone y confirma -->
+                    <div class="alert alert-info" role="status"
+                         invisible="state != 'derivado'">
+                        <i class="fa fa-info-circle"/>
+                        <b>Paso 1 — Colaborador que atiende:</b> elegí el
+                        servicio, pulsá <b>Planificar en calendario</b> para ver
+                        tu horario (en rojo lo ocupado) y proponer horarios en
+                        los huecos libres (o cargalos a mano). Cuando termines,
+                        pulsá <b>Confirmar derivación</b> para avisar a quien
+                        derivó.
+                    </div>
+                    <!-- Paso 2: A elige y crea el turno -->
+                    <div class="alert alert-warning" role="status"
+                         invisible="state != 'propuesto'">
+                        <i class="fa fa-hand-pointer-o"/>
+                        <b>Paso 2 — Quien derivó:</b> el colaborador ya propuso
+                        estos horarios. Coordiná con el cliente, y en el horario
+                        acordado pulsá <b>Crear turno con este horario</b>. El
+                        registro pasa a ser un turno reservado y sigue el flujo
+                        normal.
+                    </div>
+                    <div class="alert alert-success" role="status"
+                         invisible="state == 'derivado' or state == 'cancelled'">
+                        <i class="fa fa-check-circle"/>
+                        Horario agendado. Este turno ya sigue el flujo normal
+                        (lo ves también en el menú <b>Turnos</b>).
+                    </div>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- LIST de derivaciones -->
+    <record id="innatum_agenda_derivacion_view_list" model="ir.ui.view">
+        <field name="name">innatum.agenda.turno.derivacion.list</field>
+        <field name="model">innatum.agenda.turno</field>
+        <!-- Prioridad alta: no debe ser la lista por defecto del modelo. -->
+        <field name="priority">32</field>
+        <field name="arch" type="xml">
+            <!-- create="0": una derivación solo se crea desde el botón
+                 "Derivar" de un turno, nunca a mano desde este menú. -->
+            <list string="Derivaciones" create="0"
+                  decoration-muted="state == 'cancelled'">
+                <field name="name"/>
+                <field name="derivado_por_id" string="Derivó"/>
+                <field name="professional_id" string="Atiende"/>
+                <field name="partner_id"/>
+                <field name="servicio_id"/>
+                <field name="propuesta_count" string="Propuestas"/>
+                <field name="create_date"/>
+                <field name="state" widget="badge"
+                       decoration-warning="state == 'derivado'"
+                       decoration-info="state == 'propuesto'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- SEARCH -->
+    <record id="innatum_agenda_derivacion_view_search" model="ir.ui.view">
+        <field name="name">innatum.agenda.turno.derivacion.search</field>
+        <field name="model">innatum.agenda.turno</field>
+        <!-- Prioridad alta: no debe ser el buscador por defecto del modelo. -->
+        <field name="priority">32</field>
+        <field name="arch" type="xml">
+            <search string="Derivaciones">
+                <field name="partner_id"/>
+                <field name="professional_id" string="Atiende"/>
+                <field name="derivado_por_id" string="Derivó"/>
+                <!-- Las que crearon PARA mí (yo atiendo al cliente derivado). -->
+                <filter name="atiendo_yo" string="Mis derivaciones (para mí)"
+                        domain="[('professional_id.user_id', '=', uid)]"/>
+                <!-- Las que YO creé/solicité (yo derivé mi cliente a otro). -->
+                <filter name="derive_yo" string="Solicitadas por mí"
+                        domain="[('derivado_por_id.user_id', '=', uid)]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter name="group_prof" string="Atiende"
+                            context="{'group_by': 'professional_id'}"/>
+                    <filter name="group_deriva" string="Derivó"
+                            context="{'group_by': 'derivado_por_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ACTION -->
+    <record id="innatum_agenda_derivacion_action" model="ir.actions.act_window">
+        <field name="name">Derivaciones</field>
+        <field name="res_model">innatum.agenda.turno</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state', 'in', ('derivado', 'propuesto'))]</field>
+        <field name="context">{'default_es_derivacion': True, 'default_state': 'derivado', 'default_professional_id': False}</field>
+        <field name="search_view_id" ref="innatum_agenda_derivacion_view_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay derivaciones pendientes
+            </p>
+            <p>
+                Derivá un cliente desde el botón "Derivar" de un turno para
+                que otro colaborador lo atienda.
+            </p>
+        </field>
+    </record>
+
+    <!-- Vincular explícitamente las vistas propias de derivación a la acción -->
+    <record id="innatum_agenda_derivacion_act_view_list"
+            model="ir.actions.act_window.view">
+        <field name="sequence" eval="1"/>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="innatum_agenda_derivacion_view_list"/>
+        <field name="act_window_id" ref="innatum_agenda_derivacion_action"/>
+    </record>
+    <record id="innatum_agenda_derivacion_act_view_form"
+            model="ir.actions.act_window.view">
+        <field name="sequence" eval="2"/>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="innatum_agenda_derivacion_view_form"/>
+        <field name="act_window_id" ref="innatum_agenda_derivacion_action"/>
+    </record>
+
+    <!-- PLANIFICADOR: calendario de propuestas de la derivación -->
+    <record id="innatum_agenda_turno_propuesta_view_calendar" model="ir.ui.view">
+        <field name="name">innatum.agenda.turno.propuesta.calendar</field>
+        <field name="model">innatum.agenda.turno.propuesta</field>
+        <field name="arch" type="xml">
+            <calendar string="Proponer horarios" date_start="date_start"
+                      date_stop="date_end" color="tipo" mode="week"
+                      quick_create="0" event_open_popup="1" create="1"
+                      hide_time="false">
+                <field name="name"/>
+                <field name="tipo" filters="1"/>
+            </calendar>
+        </field>
+    </record>
+
+    <record id="innatum_agenda_turno_propuesta_view_form" model="ir.ui.view">
+        <field name="name">innatum.agenda.turno.propuesta.form</field>
+        <field name="model">innatum.agenda.turno.propuesta</field>
+        <field name="arch" type="xml">
+            <form string="Horario">
+                <header>
+                    <!-- Selector de horario de un turno NORMAL: aplica este
+                         hueco al turno. Solo cuando NO es el planificador de
+                         una derivación (parent_state derivado/propuesto). -->
+                    <button name="action_usar_para_turno" type="object"
+                            string="Usar este horario para el turno"
+                            class="btn-primary" icon="fa-check-circle"
+                            invisible="tipo != 'propuesta' or parent_state in ('derivado', 'propuesto', 'done', 'cancelled')"/>
+                </header>
+                <sheet>
+                    <field name="tipo" invisible="1"/>
+                    <field name="derivacion_id" invisible="1"/>
+                    <field name="parent_state" invisible="1"/>
+                    <div class="alert alert-danger" role="alert"
+                         invisible="tipo != 'ocupado'">
+                        <i class="fa fa-lock"/> Este horario está
+                        <b>ocupado</b>. <field name="motivo" readonly="1"
+                        nolabel="1" class="oe_inline"/>
+                    </div>
+                    <div class="alert alert-success" role="status"
+                         invisible="tipo != 'propuesta' or parent_state in ('derivado', 'propuesto')">
+                        <i class="fa fa-check-circle"/> Hueco libre. Ajustá la
+                        <b>hora de fin</b> si este servicio durará más o menos
+                        de lo habitual, y pulsá <b>Usar este horario para el
+                        turno</b> para asignarlo.
+                    </div>
+                    <div class="alert alert-success" role="status"
+                         invisible="tipo != 'propuesta' or parent_state not in ('derivado', 'propuesto')">
+                        <i class="fa fa-check-circle"/> Proponé este horario al
+                        cliente. Guardá para agregarlo.
+                    </div>
+                    <group>
+                        <field name="date_start"
+                               readonly="tipo == 'ocupado'"/>
+                        <!-- Fin editable en una propuesta: permite extender o
+                             acortar la duración del turno para este caso
+                             particular (se traslada al turno como duración
+                             personalizada). En bloques 'ocupado' es readonly. -->
+                        <field name="date_end" readonly="tipo == 'ocupado'"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- WIZARD: derivar un turno a otro colaborador -->
+    <record id="innatum_agenda_turno_derivar_wizard_form" model="ir.ui.view">
+        <field name="name">innatum.agenda.turno.derivar.wizard.form</field>
+        <field name="model">innatum.agenda.turno.derivar.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Derivar cliente">
+                <div class="alert alert-info" role="status">
+                    <i class="fa fa-share"/>
+                    Elegí al colaborador que atenderá y el servicio. Se creará
+                    una derivación para que él proponga los horarios; cuando el
+                    cliente acepte uno, el turno seguirá su flujo normal.
+                </div>
+                <group>
+                    <field name="turno_id" invisible="1"/>
+                    <field name="company_id" invisible="1"/>
+                    <field name="origen_id" invisible="1"/>
+                    <field name="partner_id"/>
+                    <!-- Sin widget de avatar: evita leer avatar_128 de otro
+                         empleado (dispara el guard de campos privados de
+                         hr.employee para usuarios no-HR). -->
+                    <field name="receptor_id"
+                           domain="[('id', '!=', origen_id), ('company_id', '=', company_id)]"
+                           options="{'no_create': True}"/>
+                    <field name="servicio_id"
+                           domain="[('operador_ids', 'in', receptor_id)]"
+                           options="{'no_create': True}"
+                           placeholder="Elegí primero el colaborador..."/>
+                    <field name="motivo"
+                           placeholder="Por qué derivás a este cliente..."/>
+                </group>
+                <footer>
+                    <button name="action_confirmar" type="object"
+                            string="Derivar" class="btn-primary"/>
+                    <button string="Cancelar" special="cancel"
+                            class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- MENÚ -->
+    <menuitem id="innatum_agenda_menu_derivaciones" name="Derivaciones"
+              parent="innatum_agenda_menu_root"
+              action="innatum_agenda_derivacion_action"
+              sequence="15"
+              groups="innatum_agenda_group_user"/>
+
+</odoo>

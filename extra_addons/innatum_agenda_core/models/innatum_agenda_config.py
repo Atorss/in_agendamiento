@@ -138,9 +138,9 @@ class InnatumAgendaConfig(models.Model):
 
     @api.constrains('servicio_ids', 'professional_id')
     def _check_servicios_habilitados_para_tenant(self):
-        """Solo se pueden usar servicios habilitados por Innatum para
-        la company del tenant (servicio.company_ids contiene la company
-        del professional).
+        """Solo se pueden usar servicios de la misma company del tenant
+        (servicio.company_id == company del professional). Red de seguridad:
+        cada tenant administra sus propios servicios.
         """
         for rec in self:
             if not rec.professional_id or not rec.servicio_ids:
@@ -149,14 +149,14 @@ class InnatumAgendaConfig(models.Model):
             if not company:
                 continue
             no_habilitados = rec.servicio_ids.filtered(
-                lambda s: company not in s.company_ids
+                lambda s: s.company_id != company
             )
             if no_habilitados:
                 nombres = ', '.join(no_habilitados.mapped('name'))
                 raise ValidationError(
-                    f'Los siguientes servicios no están habilitados para '
-                    f'la empresa "{company.name}": {nombres}.\n\n'
-                    f'Contacta a Innatum para habilitarlos.'
+                    f'Los siguientes servicios no pertenecen a la empresa '
+                    f'"{company.name}": {nombres}.\n\n'
+                    f'Usa servicios de esta empresa.'
                 )
 
     @api.constrains('fecha_desde', 'fecha_hasta')

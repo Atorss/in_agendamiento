@@ -1,0 +1,565 @@
+// Calendario interactivo de turnos — estética CalendarKit / UntitledUI.
+// Prefijo o_iac_ (Innatum Agenda Calendar) para no colisionar con nada.
+
+.o_iac_calendar {
+    --iac-border: #e9eaeb;
+    --iac-border-strong: #d5d7da;
+    --iac-text: #181d27;
+    --iac-text-muted: #717680;
+    --iac-bg: #ffffff;
+    --iac-bg-subtle: #fafafa;
+    --iac-brand: #7f56d9;
+    --iac-brand-soft: #f4f3ff;
+    --iac-radius: 10px;
+    --iac-shadow: 0 1px 2px rgba(10, 13, 18, 0.05);
+
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--iac-bg);
+    color: var(--iac-text);
+    font-size: 13px;
+
+    // ============ Toolbar ============
+    .o_iac_toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--iac-border);
+        flex-wrap: wrap;
+    }
+
+    .o_iac_toolbar_left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .o_iac_datechip {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 50px;
+        height: 50px;
+        border: 1px solid var(--iac-border);
+        border-radius: var(--iac-radius);
+        box-shadow: var(--iac-shadow);
+        line-height: 1.1;
+    }
+    .o_iac_datechip_mon {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--iac-text-muted);
+    }
+    .o_iac_datechip_day {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--iac-brand);
+    }
+
+    .o_iac_period_main {
+        display: block;
+        font-size: 16px;
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+    .o_iac_period_sub {
+        display: block;
+        font-size: 12px;
+        color: var(--iac-text-muted);
+    }
+
+    .o_iac_toolbar_right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .o_iac_select {
+        height: 34px;
+        border: 1px solid var(--iac-border-strong);
+        border-radius: 8px;
+        padding: 0 10px;
+        background: var(--iac-bg);
+        color: var(--iac-text);
+        font-size: 13px;
+        max-width: 180px;
+        cursor: pointer;
+    }
+
+    // ============ Botones ============
+    .o_iac_btn {
+        height: 34px;
+        padding: 0 12px;
+        border: 1px solid var(--iac-border-strong);
+        border-radius: 8px;
+        background: var(--iac-bg);
+        color: var(--iac-text);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: var(--iac-shadow);
+        transition: background 0.12s ease, border-color 0.12s ease;
+
+        &:hover {
+            background: var(--iac-bg-subtle);
+        }
+        &.active {
+            background: var(--iac-brand-soft);
+            border-color: var(--iac-brand);
+            color: var(--iac-brand);
+        }
+    }
+    .o_iac_btn_icon {
+        width: 34px;
+        padding: 0;
+        font-size: 18px;
+        line-height: 1;
+    }
+    .o_iac_btn_primary {
+        background: var(--iac-brand);
+        border-color: var(--iac-brand);
+        color: #fff;
+        &:hover {
+            background: #6941c6;
+        }
+    }
+
+    .o_iac_nav {
+        display: flex;
+        gap: 0;
+        .o_iac_btn {
+            border-radius: 0;
+            &:first-child {
+                border-radius: 8px 0 0 8px;
+            }
+            &:last-child {
+                border-radius: 0 8px 8px 0;
+            }
+            &:not(:first-child) {
+                border-left: none;
+            }
+        }
+    }
+
+    .o_iac_viewswitch {
+        display: flex;
+        .o_iac_btn {
+            border-radius: 0;
+            &:first-child {
+                border-radius: 8px 0 0 8px;
+            }
+            &:last-child {
+                border-radius: 0 8px 8px 0;
+            }
+            &:not(:first-child) {
+                border-left: none;
+            }
+        }
+    }
+
+    // ============ Cuerpo ============
+    .o_iac_body {
+        flex: 1;
+        overflow: auto;
+        position: relative;
+        &.o_iac_loading {
+            opacity: 0.55;
+            pointer-events: none;
+        }
+    }
+
+    // ============ Vista MES ============
+    .o_iac_month {
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+    }
+    .o_iac_month_head {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        border-bottom: 1px solid var(--iac-border);
+    }
+    .o_iac_month_head_cell {
+        padding: 8px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--iac-text-muted);
+        text-transform: lowercase;
+    }
+    .o_iac_month_grid {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    .o_iac_month_row {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        flex: 1;
+        min-height: 116px;
+    }
+    .o_iac_month_cell {
+        border-right: 1px solid var(--iac-border);
+        border-bottom: 1px solid var(--iac-border);
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        overflow: hidden;
+        cursor: pointer; // click en el área vacía → crear turno ese día
+        &:hover {
+            background: rgba(127, 86, 217, 0.04);
+        }
+        &:nth-child(7n) {
+            border-right: none;
+        }
+        &.o_iac_outmonth {
+            background: var(--iac-bg-subtle);
+            .o_iac_daynum {
+                color: var(--iac-border-strong);
+            }
+        }
+        &.o_iac_today {
+            background: var(--iac-brand-soft);
+        }
+    }
+    .o_iac_month_cell_head {
+        display: flex;
+        justify-content: flex-start;
+    }
+    .o_iac_daynum {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--iac-text);
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 6px;
+        &:hover {
+            background: rgba(127, 86, 217, 0.12);
+        }
+    }
+    .o_iac_daynum_today {
+        background: var(--iac-brand);
+        color: #fff !important;
+        &:hover {
+            background: #6941c6;
+        }
+    }
+    .o_iac_month_events {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+    .o_iac_more {
+        font-size: 11px;
+        color: var(--iac-text-muted);
+        cursor: pointer;
+        padding-left: 4px;
+        &:hover {
+            color: var(--iac-brand);
+        }
+    }
+
+    // Pills de evento (mes)
+    .o_iac_pill {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        border-left: 3px solid currentColor;
+        font-size: 11px;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        user-select: none;
+        .o_iac_pill_time {
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        .o_iac_pill_text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+
+    // ============ Timeline (semana / día) ============
+    .o_iac_timeline {
+        display: flex;
+        flex-direction: column;
+        min-width: 100%;
+    }
+    .o_iac_tl_head {
+        display: flex;
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: var(--iac-bg);
+        border-bottom: 1px solid var(--iac-border);
+    }
+    .o_iac_tl_gutter {
+        width: 64px;
+        flex-shrink: 0;
+    }
+    .o_iac_tl_dayhead {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px 4px;
+        border-left: 1px solid var(--iac-border);
+        gap: 2px;
+        .o_iac_tl_wd {
+            font-size: 11px;
+            color: var(--iac-text-muted);
+            text-transform: lowercase;
+        }
+        .o_iac_tl_dn {
+            font-size: 15px;
+            font-weight: 600;
+            padding: 1px 8px;
+            border-radius: 14px;
+        }
+    }
+    .o_iac_tl_body {
+        display: flex;
+        position: relative;
+    }
+    .o_iac_tl_hour {
+        position: relative;
+        display: flex;
+        justify-content: flex-end;
+        padding-right: 8px;
+        font-size: 11px;
+        color: var(--iac-text-muted);
+        border-top: 1px solid var(--iac-border);
+        box-sizing: border-box;
+        // La etiqueta se coloca justo bajo la línea de la hora; el primer
+        // valor (06:00) NO se monta sobre el encabezado.
+        > span {
+            transform: translateY(2px);
+        }
+        // Primera hora: empuja la etiqueta hacia abajo para que no toque el borde.
+        &:first-child > span {
+            transform: translateY(4px);
+        }
+    }
+    .o_iac_tl_col {
+        flex: 1;
+        position: relative;
+        border-left: 1px solid var(--iac-border);
+    }
+    .o_iac_tl_slot {
+        border-top: 1px solid var(--iac-border);
+        box-sizing: border-box;
+        cursor: pointer;
+        &:hover {
+            background: var(--iac-brand-soft);
+        }
+    }
+
+    // Eventos en timeline
+    .o_iac_event {
+        position: absolute;
+        border-radius: 7px;
+        border-left: 3px solid currentColor;
+        padding: 2px 6px;
+        overflow: hidden;
+        cursor: pointer;
+        user-select: none;
+        font-size: 11px;
+        line-height: 1.25;
+        box-shadow: var(--iac-shadow);
+        z-index: 2;
+        .o_iac_event_time {
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .o_iac_event_title {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .o_iac_event_sub {
+            opacity: 0.85;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+
+    // Alto mínimo para que la etiqueta (1 línea) sea legible aunque el turno
+    // dure muy poco (ej. 10 min, que de otro modo mediría ~9px de alto).
+    .o_iac_event {
+        min-height: 19px;
+    }
+
+    // SEMANA y DÍA: rango + Dr · cliente en una sola línea (sin saltos).
+    .o_iac_event_oneline {
+        display: flex;
+        align-items: baseline;
+        gap: 5px;
+        white-space: nowrap;
+        .o_iac_event_time {
+            flex-shrink: 0;
+        }
+        .o_iac_event_inline {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+    }
+
+    // ============ Modal de día ============
+    .o_iac_modal_backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 13, 18, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1050;
+    }
+    .o_iac_modal {
+        // Nota: NO usar min(560px, 92%) — el compilador SCSS de Odoo interpreta
+        // min()/max() como funciones Sass y falla con "Incompatible units % y px".
+        width: 92%;
+        max-width: 560px;
+        max-height: 86%;
+        background: var(--iac-bg);
+        border-radius: 14px;
+        box-shadow: 0 20px 40px rgba(10, 13, 18, 0.2);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .o_iac_modal_head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--iac-border);
+        h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+    }
+    .o_iac_modal_actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    .o_iac_modal_body {
+        padding: 12px 18px 18px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .o_iac_empty {
+        text-align: center;
+        color: var(--iac-text-muted);
+        padding: 28px 0;
+    }
+    .o_iac_modal_event {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border: 1px solid var(--iac-border);
+        border-left: 4px solid currentColor;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background 0.12s ease;
+        &:hover {
+            background: var(--iac-bg-subtle);
+        }
+    }
+    .o_iac_modal_event_time {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        min-width: 64px;
+        .o_iac_modal_event_h {
+            font-size: 15px;
+            font-weight: 700;
+        }
+        .o_iac_modal_event_to {
+            font-size: 11px;
+            color: var(--iac-text-muted);
+        }
+    }
+    .o_iac_modal_event_main {
+        flex: 1;
+        min-width: 0;
+    }
+    .o_iac_modal_event_title {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .o_iac_modal_event_meta {
+        font-size: 12px;
+        color: var(--iac-text-muted);
+        .o_iac_dot {
+            margin-left: 4px;
+        }
+    }
+    .o_iac_badge {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 12px;
+        border: 1px solid currentColor;
+        white-space: nowrap;
+    }
+
+    // ============ Colores por estado ============
+    // currentColor tiñe el borde; el fondo es una versión suave.
+    .o_iac_state_available {
+        color: #047857;
+        background: #ecfdf3;
+    }
+    .o_iac_state_reserved {
+        color: #b54708;
+        background: #fffaeb;
+    }
+    .o_iac_state_confirmed {
+        color: #175cd3;
+        background: #eff8ff;
+    }
+    .o_iac_state_done {
+        color: #6941c6;
+        background: #f4f3ff;
+    }
+    .o_iac_state_cancelled {
+        color: #b42318;
+        background: #fef3f2;
+        text-decoration: line-through;
+    }
+    // El badge no debe tachar su propio texto.
+    .o_iac_badge.o_iac_state_cancelled {
+        text-decoration: none;
+    }
+}
+
+// ============ Modo oscuro (sigue el tema de Odoo) ============
+.o_web_client.o_dark_mode .o_iac_calendar,
+.o_iac_calendar.o_dark_mode {
+    --iac-border: #373a41;
+    --iac-border-strong: #4a4d55;
+    --iac-text: #f7f7f7;
+    --iac-text-muted: #94979c;
+    --iac-bg: #1a1c1f;
+    --iac-bg-subtle: #222428;
+    --iac-brand-soft: #2a2342;
+}

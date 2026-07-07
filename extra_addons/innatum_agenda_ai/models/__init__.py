@@ -18,7 +18,11 @@ from . import ai_prompt
 from . import prompt_composer
 from . import rdcm
 from . import wa_throttle
+from . import wa_outbound
+from . import agenda_turno_wa
+from . import hr_employee_wa
 from . import whatsapp_agent
+from . import whatsapp_staff_agent
 # --- Chatbot web (ex innatum_ai_web) ---
 from . import chatbot_session
 from . import chatbot_engine

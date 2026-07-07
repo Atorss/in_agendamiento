@@ -38,4 +38,22 @@
         <field name="comment">Configuración del sistema: gestión completa de modelos de agenda + alta de colaboradores vía wizard.</field>
     </record>
 
+    <!-- Grupos TÉCNICOS de modo de agenda (auto-gestionados; NO asignar a mano).
+         La pertenencia se sincroniza automáticamente según el agenda_modo de la
+         empresa del usuario (ver res_users.py / res_company.py) y controla la
+         visibilidad de los menús específicos de cada modo:
+           • Planificada → menú "Planificación" (innatum.agenda.config)
+           • Directa     → menú "Bloqueos" (innatum.agenda.bloqueo)
+         Sin category_id para que no aparezcan como opción editable en el form
+         de usuario (mismo patrón que el grupo técnico de facturación). -->
+    <record id="innatum_agenda_group_modo_planificada" model="res.groups">
+        <field name="name">Modo agenda: Planificada (técnico)</field>
+        <field name="comment">Auto-gestionado. Usuarios cuya empresa tiene agenda_modo=planificada. Controla la visibilidad del menú Planificación.</field>
+    </record>
+
+    <record id="innatum_agenda_group_modo_directa" model="res.groups">
+        <field name="name">Modo agenda: Directa (técnico)</field>
+        <field name="comment">Auto-gestionado. Usuarios cuya empresa tiene agenda_modo=directa. Controla la visibilidad del menú Bloqueos.</field>
+    </record>
+
 </odoo>

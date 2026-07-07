@@ -11,6 +11,10 @@ SESSION_STATES = [
     ('esperando_cedula', 'Esperando cédula (usuario nuevo)'),
     ('esperando_nombre', 'Esperando nombre completo'),
     ('menu_principal', 'En menú principal'),
+    # Flujo STAFF (Fase 2: derivaciones por WhatsApp)
+    ('staff_menu', 'Staff: menú'),
+    ('staff_derivacion', 'Staff: viendo derivación'),
+    ('staff_proponiendo', 'Staff: proponiendo horarios'),
     ('eligiendo_servicio', 'Eligiendo servicio'),
     # Sub-flujo: agendar para un tercero
     ('confirmando_paciente', '¿Reserva para él o para otra persona?'),
@@ -74,6 +78,12 @@ class AiSession(models.Model):
         help='Turno que el cliente tapeó pero aún no se reservó (esperando '
              'cédula y nombre). Distinto de turno_id (ya reservado).',
     )
+    pending_slot_token = fields.Char(
+        string='Slot seleccionado (modo directo)',
+        help='Token opaco "D|prof|iso" del horario que el cliente tapeó en '
+             'modo de agenda directa (el turno aún no existe; se crea al '
+             'reservar). Equivalente a pending_turno_id pero para Modo B.',
+    )
     # Estado del flujo determinístico de identificación
     pending_cedula = fields.Char(
         string='Cédula pendiente',
@@ -93,6 +103,24 @@ class AiSession(models.Model):
              'es el cliente que escribe sino un familiar/amigo.',
     )
     state = fields.Selection(SESSION_STATES, default='nueva', required=True, index=True)
+    # --- Fase 2: actor de la conversación (staff vs paciente) ---
+    actor = fields.Selection([
+        ('paciente', 'Paciente'),
+        ('staff', 'Staff'),
+    ], default='paciente', required=True,
+       help='Quién escribe: un paciente o un empleado del tenant '
+            '(identificado por su celular en la ficha de empleado).')
+    employee_id = fields.Many2one(
+        'hr.employee', string='Empleado (si actor=staff)',
+        help='Empleado del tenant cuyo celular coincide con wa_from.',
+    )
+    staff_derivacion_id = fields.Many2one(
+        'innatum.agenda.turno', string='Derivación en curso (staff)',
+        help='Derivación que el colaborador está atendiendo por WhatsApp.',
+    )
+    staff_slot_page = fields.Integer(
+        string='Página de huecos (staff)', default=0,
+    )
     message_ids = fields.One2many('innatum.ai.session.message', 'session_id', string='Mensajes')
     expires_at = fields.Datetime(string='Expira')
 
@@ -111,6 +139,31 @@ class AiSession(models.Model):
         if new_state not in valid:
             raise UserError('Estado inválido: %s' % new_state)
         self.state = new_state
+
+    def ensure_actor(self):
+        """Resuelve (y re-verifica) si este número pertenece a un empleado
+        ACTIVO del tenant. Cachea employee_id, pero re-verifica en cada
+        llamada: un colaborador archivado vuelve a tratarse como paciente.
+        Devuelve 'staff' o 'paciente'.
+        """
+        self.ensure_one()
+        emp = self.employee_id
+        if emp and emp.active and emp.company_id == self.company_id \
+                and emp.wa_number_normalized == self.wa_from:
+            if self.actor != 'staff':
+                self.actor = 'staff'
+            return 'staff'
+        emp = self.env['hr.employee'].sudo().search([
+            ('company_id', '=', self.company_id.id),
+            ('wa_number_normalized', '=', self.wa_from),
+            ('active', '=', True),
+        ], limit=1)
+        if emp:
+            self.write({'actor': 'staff', 'employee_id': emp.id})
+            return 'staff'
+        if self.actor != 'paciente' or self.employee_id:
+            self.write({'actor': 'paciente', 'employee_id': False})
+        return 'paciente'
 
     def append_message(self, role, content, tokens_in=0, tokens_out=0, cost_usd=0.0, wamid=None):
         self.ensure_one()

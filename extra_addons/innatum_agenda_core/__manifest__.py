@@ -12,7 +12,7 @@
     'author': 'Innatum',
     'website': 'https://www.innatum.com',
     'category': 'Services',
-    'version': '18.0.4.18.0',
+    'version': '18.0.4.47.0',
     'depends': [
         'base',
         'mail',
@@ -29,10 +29,19 @@
         'views/innatum_agenda_turno_views.xml',
         'views/innatum_agenda_servicio_views.xml',
         'views/innatum_agenda_menus.xml',
+        'views/innatum_agenda_bloqueo_views.xml',
+        'views/innatum_agenda_derivacion_views.xml',
+        'views/innatum_agenda_calendario_views.xml',
         'views/res_partner_clientes_views.xml',
         'views/hr_employee_colaborador_views.xml',
         'views/res_company_views.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'innatum_agenda_core/static/src/js/calendar_business_hours.js',
+            'innatum_agenda_core/static/src/scss/calendar_business_hours.scss',
+        ],
+    },
     'demo': [],
     'installable': True,
     'application': True,

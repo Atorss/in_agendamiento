@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+
+<t t-name="innatum_agenda_calendar.Calendar">
+    <div class="o_iac_calendar">
+
+        <!-- ============ Barra superior ============ -->
+        <div class="o_iac_toolbar">
+            <div class="o_iac_toolbar_left">
+                <div class="o_iac_datechip">
+                    <span class="o_iac_datechip_mon" t-esc="cursor.setLocale('es').toFormat('LLL').toUpperCase()"/>
+                    <span class="o_iac_datechip_day" t-esc="cursor.day"/>
+                </div>
+                <div class="o_iac_period">
+                    <span class="o_iac_period_main" t-esc="periodLabel"/>
+                    <span class="o_iac_period_sub" t-esc="rangeSubLabel"/>
+                </div>
+            </div>
+
+            <div class="o_iac_toolbar_right">
+                <!-- Filtros -->
+                <select class="o_iac_select" t-on-change="onFilterProfessional">
+                    <option value="">Todos los profesionales</option>
+                    <t t-foreach="state.professionals" t-as="p" t-key="p.id">
+                        <option t-att-value="p.id"
+                                t-att-selected="state.filterProfessional === p.id"
+                                t-esc="p.name"/>
+                    </t>
+                </select>
+                <select class="o_iac_select" t-on-change="onFilterServicio">
+                    <option value="">Todos los servicios</option>
+                    <t t-foreach="state.servicios" t-as="s" t-key="s.id">
+                        <option t-att-value="s.id"
+                                t-att-selected="state.filterServicio === s.id"
+                                t-esc="s.name"/>
+                    </t>
+                </select>
+                <select class="o_iac_select" t-on-change="onFilterState">
+                    <option value="">Todos los estados</option>
+                    <t t-foreach="stateOptions" t-as="st" t-key="st.code">
+                        <option t-att-value="st.code"
+                                t-att-selected="state.filterState === st.code"
+                                t-esc="st.label"/>
+                    </t>
+                </select>
+
+                <!-- Navegación -->
+                <div class="o_iac_nav">
+                    <button class="o_iac_btn o_iac_btn_icon" t-on-click="prev" title="Anterior">‹</button>
+                    <button class="o_iac_btn" t-on-click="goToday">Hoy</button>
+                    <button class="o_iac_btn o_iac_btn_icon" t-on-click="next" title="Siguiente">›</button>
+                </div>
+
+                <!-- Selector de vista -->
+                <div class="o_iac_viewswitch">
+                    <button class="o_iac_btn" t-att-class="{ active: state.view === 'month' }"
+                            t-on-click="() => this.setView('month')">Mes</button>
+                    <button class="o_iac_btn" t-att-class="{ active: state.view === 'week' }"
+                            t-on-click="() => this.setView('week')">Semana</button>
+                    <button class="o_iac_btn" t-att-class="{ active: state.view === 'day' }"
+                            t-on-click="() => this.setView('day')">Día</button>
+                </div>
+
+                <button class="o_iac_btn o_iac_btn_primary" t-on-click="() => this.createAt(null)">
+                    + Nuevo turno
+                </button>
+            </div>
+        </div>
+
+        <!-- ============ Cuerpo ============ -->
+        <div class="o_iac_body" t-att-class="{ 'o_iac_loading': state.loading }">
+
+            <!-- ===== VISTA MES ===== -->
+            <t t-if="state.view === 'month'">
+                <div class="o_iac_month">
+                    <div class="o_iac_month_head">
+                        <t t-foreach="WEEKDAY_SHORT" t-as="wd" t-key="wd">
+                            <div class="o_iac_month_head_cell" t-esc="wd"/>
+                        </t>
+                    </div>
+                    <div class="o_iac_month_grid">
+                        <t t-foreach="monthWeeks" t-as="week" t-key="week_index">
+                            <div class="o_iac_month_row">
+                                <t t-foreach="week" t-as="day" t-key="day.iso">
+                                    <div class="o_iac_month_cell"
+                                         t-att-class="{ 'o_iac_outmonth': !day.inMonth, 'o_iac_today': day.isToday }"
+                                         t-on-click="() => this.onCreateDay(day.iso)"
+                                         t-on-dragover="onDragOver"
+                                         t-on-drop="(ev) => this.onDropDay(ev, day.iso)">
+                                        <div class="o_iac_month_cell_head">
+                                            <span class="o_iac_daynum"
+                                                  t-att-class="{ 'o_iac_daynum_today': day.isToday }"
+                                                  t-on-click.stop="() => this.openDay(day.iso)"
+                                                  t-esc="day.label"/>
+                                        </div>
+                                        <div class="o_iac_month_events">
+                                            <t t-foreach="day.events" t-as="ev" t-key="ev.id">
+                                                <div class="o_iac_pill"
+                                                     t-att-class="stateClass(ev.state)"
+                                                     draggable="true"
+                                                     t-on-dragstart="(e) => this.onDragStart(e, ev.id)"
+                                                     t-on-dragend="onDragEnd"
+                                                     t-on-click.stop="() => this.openEvent(ev.id)"
+                                                     t-att-title="tooltip(ev)">
+                                                    <span class="o_iac_pill_time"><t t-esc="fmtHour(ev.start)"/>-<t t-esc="fmtHour(ev.end)"/></span>
+                                                    <span class="o_iac_pill_text"><t t-esc="ev.professional or ev.title"/><t t-if="ev.partner"> · <t t-esc="ev.partner"/></t></span>
+                                                </div>
+                                            </t>
+                                            <div t-if="day.extra" class="o_iac_more"
+                                                 t-on-click.stop="() => this.openDay(day.iso)">
+                                                +<t t-esc="day.extra"/> más
+                                            </div>
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+            </t>
+
+            <!-- ===== VISTA SEMANA / DÍA ===== -->
+            <t t-else="">
+                <div class="o_iac_timeline" t-att-class="{ o_iac_timeline_day: state.view === 'day' }">
+                    <!-- Encabezado de columnas -->
+                    <div class="o_iac_tl_head">
+                        <div class="o_iac_tl_gutter"/>
+                        <t t-foreach="timelineDays" t-as="col" t-key="col.iso">
+                            <div class="o_iac_tl_dayhead" t-att-class="{ 'o_iac_today': col.isToday }">
+                                <span class="o_iac_tl_wd" t-esc="col.weekdayShort"/>
+                                <span class="o_iac_tl_dn"
+                                      t-att-class="{ 'o_iac_daynum_today': col.isToday }"
+                                      t-esc="col.dayNum"/>
+                            </div>
+                        </t>
+                    </div>
+                    <!-- Rejilla horaria -->
+                    <div class="o_iac_tl_body">
+                        <div class="o_iac_tl_gutter">
+                            <t t-foreach="hours" t-as="h" t-key="h">
+                                <div class="o_iac_tl_hour" t-attf-style="height:{{HOUR_HEIGHT}}px;">
+                                    <span t-esc="(h &lt; 10 ? '0' : '') + h + ':00'"/>
+                                </div>
+                            </t>
+                        </div>
+                        <t t-foreach="timelineDays" t-as="col" t-key="col.iso">
+                            <div class="o_iac_tl_col"
+                                 t-attf-style="height:{{gridHeight}}px;"
+                                 t-on-dragover="onDragOver"
+                                 t-on-drop="(ev) => this.onDropTimeline(ev, col.iso)">
+                                <!-- líneas horarias clicables para crear -->
+                                <t t-foreach="hours" t-as="h" t-key="h">
+                                    <div class="o_iac_tl_slot"
+                                         t-attf-style="height:{{HOUR_HEIGHT}}px;"
+                                         t-on-click="() => this.onSlotClick(col.iso, h)"/>
+                                </t>
+                                <!-- eventos posicionados -->
+                                <t t-foreach="col.layout" t-as="pos" t-key="pos.ev.id">
+                                    <!-- Semana y día: todo en una sola línea (no se corta
+                                         aunque el turno dure poco, p.ej. 10 min). -->
+                                    <div class="o_iac_event o_iac_event_oneline"
+                                         t-att-class="stateClass(pos.ev.state)"
+                                         t-att-style="pos.style"
+                                         draggable="true"
+                                         t-on-dragstart="(e) => this.onDragStart(e, pos.ev.id)"
+                                         t-on-dragend="onDragEnd"
+                                         t-on-click.stop="() => this.openEvent(pos.ev.id)"
+                                         t-att-title="tooltip(pos.ev)">
+                                        <span class="o_iac_event_time"><t t-esc="fmtHour(pos.ev.start)"/>-<t t-esc="fmtHour(pos.ev.end)"/></span>
+                                        <span class="o_iac_event_inline"><t t-esc="pos.ev.professional or pos.ev.title"/><t t-if="pos.ev.partner"> · <t t-esc="pos.ev.partner"/></t></span>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+            </t>
+        </div>
+
+        <!-- ============ Modal de día ============ -->
+        <t t-if="dayModal">
+            <div class="o_iac_modal_backdrop" t-on-click="closeDayModal">
+                <div class="o_iac_modal" t-on-click.stop="() => {}">
+                    <div class="o_iac_modal_head">
+                        <h3 t-esc="dayModal.title"/>
+                        <div class="o_iac_modal_actions">
+                            <button class="o_iac_btn o_iac_btn_primary" t-on-click="createInDay">+ Nuevo turno</button>
+                            <button class="o_iac_btn o_iac_btn_icon" t-on-click="closeDayModal" title="Cerrar">✕</button>
+                        </div>
+                    </div>
+                    <div class="o_iac_modal_body">
+                        <t t-if="!dayModal.events.length">
+                            <div class="o_iac_empty">No hay turnos para este día.</div>
+                        </t>
+                        <t t-foreach="dayModal.events" t-as="ev" t-key="ev.id">
+                            <div class="o_iac_modal_event"
+                                 t-att-class="stateClass(ev.state)"
+                                 t-on-click="() => this.openEvent(ev.id)">
+                                <div class="o_iac_modal_event_time">
+                                    <span class="o_iac_modal_event_h" t-esc="fmtHour(ev.start)"/>
+                                    <span class="o_iac_modal_event_to">→ <t t-esc="fmtHour(ev.end)"/></span>
+                                </div>
+                                <div class="o_iac_modal_event_main">
+                                    <div class="o_iac_modal_event_title" t-esc="ev.professional or ev.title"/>
+                                    <div class="o_iac_modal_event_meta">
+                                        <span t-if="ev.partner" t-esc="ev.partner"/>
+                                        <span t-if="ev.servicio" class="o_iac_dot">• <t t-esc="ev.servicio"/></span>
+                                    </div>
+                                </div>
+                                <span class="o_iac_badge" t-att-class="stateClass(ev.state)" t-esc="stateLabel(ev.state)"/>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+            </div>
+        </t>
+
+    </div>
+</t>
+
+</templates>

@@ -129,15 +129,6 @@ class InAgendaTenantWizard(models.TransientModel):
         # porque la unidad cambió.
         self.duracion = 1
 
-    # --- Catálogo de servicios habilitados ---
-    servicio_ids = fields.Many2many(
-        'innatum.agenda.servicio',
-        string='Servicios habilitados',
-        help='Servicios del catálogo de Innatum que este tenant podrá '
-             'ofrecer. Si no aparece el servicio que necesitas, primero '
-             'crealo en "Innatum SaaS → Catálogo de servicios".',
-    )
-
     # --- Localización ---
     country_id = fields.Many2one(
         'res.country', string='País',
@@ -158,6 +149,16 @@ class InAgendaTenantWizard(models.TransientModel):
         help='Define el look del sitio público del tenant. '
              'Si elegís "odontológico" debe estar instalado '
              '`innatum_agenda_web_odonto`.',
+    )
+    agenda_modo = fields.Selection(
+        selection=lambda self: self.env['res.company']._fields['agenda_modo'].selection,
+        string='Modo de agenda', default='planificada', required=True,
+        help='Planificada: se pre-generan turnos de duración fija desde '
+             'planificaciones (peluquería, lavadero). Directa: la '
+             'disponibilidad se calcula on-demand desde el horario del '
+             'profesional y el turno se crea al agendar con la duración del '
+             'servicio (consultorios médicos/odontológicos). Se puede cambiar '
+             'después; las citas agendadas se conservan.',
     )
 
     @api.model
@@ -241,6 +242,7 @@ class InAgendaTenantWizard(models.TransientModel):
             'currency_id': self.currency_id.id if self.currency_id else False,
             'country_id': self.country_id.id if self.country_id else False,
             'vertical': self.vertical,
+            'agenda_modo': self.agenda_modo,
         }
         company = self.env['res.company'].sudo().create(company_vals)
 
@@ -314,12 +316,9 @@ class InAgendaTenantWizard(models.TransientModel):
                 'fecha_inicio': self.fecha_inicio,
             })
 
-        # 6.1 Asignar los servicios habilitados al tenant (catálogo Innatum)
-        if self.servicio_ids:
-            for servicio in self.servicio_ids:
-                servicio.sudo().write({
-                    'company_ids': [(4, company.id)],
-                })
+        # 6.1 (Los servicios ahora son por tenant: el admin del tenant los
+        # crea él mismo desde su backend tras el provisioning. Innatum ya no
+        # asigna un catálogo aquí.)
 
         # 6.2 Crear hr.employee del admin si va a atender como profesional.
         # Caso típico: el dueño/a del tenant también atiende clientes.
@@ -336,13 +335,6 @@ class InAgendaTenantWizard(models.TransientModel):
                 'user_id': admin.id,
                 'company_id': company.id,
             })
-            # Si Innatum habilitó servicios para este tenant, los anotamos
-            # como referencia para que después se asignen en la planificación.
-            if self.servicio_ids:
-                nombres = ', '.join(self.servicio_ids.mapped('name'))
-                employee.sudo().message_post(
-                    body=_('Servicios habilitados en este tenant: %s') % nombres,
-                )
             _logger.info(
                 'Tenant provisioning: empleado admin creado emp=%s user=%s',
                 employee.id, admin.id,

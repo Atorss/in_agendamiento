@@ -148,12 +148,12 @@ class ChatbotEngine(models.AbstractModel):
         today = fields.Date.today()
 
         # Aislamiento multi-tenant: solo los servicios del tenant actual.
-        # innatum.agenda.servicio usa M2M company_ids (catálogo compartido) y
-        # aquí va con sudo(), así que NI with_company NI la ir.rule global lo
-        # filtran: hay que acotar por company explícitamente o se filtran los
+        # innatum.agenda.servicio es por tenant (company_id) y aquí va con
+        # sudo(), así que NI with_company NI la ir.rule global lo filtran:
+        # hay que acotar por company explícitamente o se filtran los
         # servicios de TODOS los tenants al prompt del LLM.
         servicios = self.env['innatum.agenda.servicio'].sudo().search([
-            ('company_ids', 'in', company.id),
+            ('company_id', '=', company.id),
         ])
         Turno = self.env['innatum.agenda.turno'].sudo()
         svc_lines = []

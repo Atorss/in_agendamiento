@@ -67,7 +67,7 @@
                             <field name="street" string="Calle" placeholder="Calle"/>
                         </group>
                     </group>
-                    <group string="Datos de contacto" invisible="not factura_electronica_tenant">
+                    <group string="Datos de contacto">
                         <group>
                             <field name="phone" widget="phone"/>
                             <field name="mobile" widget="phone"/>
@@ -85,9 +85,15 @@
         <field name="name">Clientes</field>
         <field name="res_model">res.partner</field>
         <field name="view_mode">list,kanban,form</field>
-        <field name="domain">[('servicios_consumidos_ids', '!=', False)]</field>
+        <!-- Muestra clientes que YA reservaron (servicios_consumidos_ids) O
+             los creados manualmente desde aquí (customer_rank > 0, marcado por
+             el default del context). Así los clientes cargados a mano no
+             desaparecen al guardar, sin dejar de filtrar los partners
+             estructurales (empresas, empleados, public users). -->
+        <field name="domain">['|', ('servicios_consumidos_ids', '!=', False), ('customer_rank', '>', 0)]</field>
         <field name="context">{
             'default_company_id': allowed_company_ids and allowed_company_ids[0],
+            'default_customer_rank': 1,
             'search_default_customer': 1,
             'cliente_default_pais': 1,
         }</field>

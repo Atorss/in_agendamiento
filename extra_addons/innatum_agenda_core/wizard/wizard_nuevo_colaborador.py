@@ -36,7 +36,7 @@ class InAgendaColaboradorWizard(models.TransientModel):
         string='Servicios que atiende',
         help='Servicios para los cuales este colaborador puede ser '
              'asignado en planificaciones de horarios.',
-        domain="[('company_ids', 'in', allowed_company_ids)]",
+        domain="[('company_id', 'in', allowed_company_ids)]",
     )
 
     @api.constrains('password')
@@ -115,8 +115,14 @@ class InAgendaColaboradorWizard(models.TransientModel):
             'tz': tz,
         })
 
-        # 2. Crear hr.employee linkeado al user, con los servicios que atiende
-        employee = self.env['hr.employee'].sudo().create({
+        # 2. Crear hr.employee linkeado al user, con los servicios que atiende.
+        #    Fijamos explícitamente el horario de trabajo (resource_calendar_id)
+        #    al calendario de LA EMPRESA del tenant. Sin esto, hr.employee lo
+        #    resuelve desde self.env.company (la empresa activa del que crea),
+        #    que en el provisioning es Innatum → el empleado quedaría con el
+        #    calendario de otra empresa (fuga multi-tenant y disponibilidad
+        #    directa incorrecta). El admin puede cambiarlo luego por uno propio.
+        emp_vals = {
             'name': self.name,
             'work_email': self.work_email,
             'work_phone': self.work_phone or False,
@@ -125,7 +131,10 @@ class InAgendaColaboradorWizard(models.TransientModel):
             'user_id': user.id,
             'company_id': company.id,
             'servicio_ids': [(6, 0, self.servicio_ids.ids)],
-        })
+        }
+        if company.resource_calendar_id:
+            emp_vals['resource_calendar_id'] = company.resource_calendar_id.id
+        employee = self.env['hr.employee'].sudo().create(emp_vals)
 
         _logger.info(
             'Colaborador creado en tenant company=%s: user=%s emp=%s servicios=%s',
@@ -232,7 +241,7 @@ class InAgendaColaboradorServiciosWizard(models.TransientModel):
         'innatum.agenda.servicio',
         'in_agenda_colab_serv_wiz_rel', 'wizard_id', 'servicio_id',
         string='Servicios que atiende',
-        domain="[('company_ids', 'in', allowed_company_ids)]",
+        domain="[('company_id', 'in', allowed_company_ids)]",
         help='Servicios del catálogo habilitados para tu negocio que este '
              'colaborador brinda.')
 
@@ -248,4 +257,38 @@ class InAgendaColaboradorServiciosWizard(models.TransientModel):
         _logger.info(
             'Servicios de colaborador emp=%s actualizados: %s',
             self.employee_id.id, self.servicio_ids.ids)
+        return {'type': 'ir.actions.act_window_close'}
+
+
+class InAgendaColaboradorHorarioWizard(models.TransientModel):
+    """Wizard para asignar/cambiar el horario de trabajo (resource.calendar)
+    de un colaborador. Relevante en modo de agenda 'directa', donde la
+    disponibilidad se calcula a partir de ese horario. El admin tiene el form
+    del colaborador en solo lectura, así que el cambio se aplica con sudo."""
+    _name = 'in_agenda.colaborador.horario.wizard'
+    _description = 'Wizard: Cambiar horario de trabajo del colaborador'
+
+    employee_id = fields.Many2one(
+        'hr.employee', string='Colaborador', required=True, readonly=True)
+    resource_calendar_id = fields.Many2one(
+        'resource.calendar', string='Horario de trabajo',
+        domain="[('company_id', 'in', allowed_company_ids)]",
+        help='Horario semanal de atención del colaborador. Podés reutilizar '
+             'uno existente o crear uno nuevo (se gestionan en el menú '
+             'Configuración → Horarios de trabajo).')
+
+    @api.onchange('employee_id')
+    def _onchange_employee_id(self):
+        if self.employee_id:
+            self.resource_calendar_id = self.employee_id.resource_calendar_id
+
+    def action_aplicar(self):
+        self.ensure_one()
+        if not self.resource_calendar_id:
+            raise ValidationError(_('Selecciona un horario de trabajo.'))
+        self.employee_id.sudo().write({
+            'resource_calendar_id': self.resource_calendar_id.id})
+        _logger.info(
+            'Horario de colaborador emp=%s actualizado: calendar=%s',
+            self.employee_id.id, self.resource_calendar_id.id)
         return {'type': 'ir.actions.act_window_close'}

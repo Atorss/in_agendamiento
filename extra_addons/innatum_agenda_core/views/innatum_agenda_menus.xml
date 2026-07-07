@@ -12,10 +12,13 @@
               action="innatum_agenda_turno_action"
               sequence="10"/>
 
+    <!-- Planificación: solo para tenants en modo 'planificada' (grupo técnico
+         auto-gestionado) + Innatum staff (base.group_system) que ve todo. -->
     <menuitem id="innatum_agenda_menu_planificacion" name="Planificación"
               parent="innatum_agenda_menu_root"
               action="innatum_agenda_config_action"
-              sequence="20"/>
+              sequence="20"
+              groups="innatum_agenda_group_modo_planificada,base.group_system"/>
 
     <!-- Configuración -->
     <menuitem id="innatum_agenda_menu_config" name="Configuración"
@@ -23,16 +26,15 @@
               sequence="90"
               groups="innatum_agenda_group_admin"/>
 
-    <!-- Servicios ahora es catálogo centralizado de Innatum (M2M
-         company_ids). El admin del tenant solo puede LEER, no crear/
-         editar. Para evitar confusión (admin clickea Nuevo y le sale
-         AccessError), ocultamos este menú para todos excepto el admin
-         del sistema. Innatum admin ya tiene "Catálogo de servicios" en
-         "Innatum SaaS" con vista CRUD. -->
+    <!-- Servicios es POR TENANT: cada empresa administra sus propios
+         servicios (company_id M2O). El admin del tenant (innatum_agenda_group_admin)
+         los crea/edita/borra — coherente con el ACL (1,1,1,1) y el record rule
+         de aislamiento por company. Innatum staff además tiene su propia vista
+         "Catálogo de servicios" en el menú "Innatum SaaS". -->
     <menuitem id="innatum_agenda_menu_servicios" name="Servicios"
               parent="innatum_agenda_menu_config"
               action="innatum_agenda_servicio_action"
               sequence="10"
-              groups="base.group_system"/>
+              groups="innatum_agenda_group_admin"/>
 
 </odoo>

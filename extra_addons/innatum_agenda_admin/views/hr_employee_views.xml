@@ -45,6 +45,26 @@
                             <field name="puede_planificar"/>
                         </group>
                     </group>
+                    <!-- Horario de trabajo: solo relevante en modo de agenda
+                         'directa', donde la disponibilidad se calcula como
+                         (horario de trabajo − turnos − bloqueos). Por defecto
+                         hereda el horario estándar de la empresa; el admin
+                         puede asignarle uno propio (crear desde aquí) o
+                         reutilizar uno ya definido para un grupo. -->
+                    <field name="agenda_modo" invisible="1"/>
+                    <group string="Horario de trabajo (modo directa)"
+                           invisible="agenda_modo != 'directa'">
+                        <field name="resource_calendar_id"
+                               string="Horario asignado"
+                               options="{'no_quick_create': True}"
+                               help="Horario semanal de atención de este colaborador. Determina su disponibilidad cuando la empresa opera en modo de agenda directa."/>
+                        <div class="text-muted" colspan="2">
+                            <i class="fa fa-info-circle"/>
+                            Podés crear un horario nuevo desde aquí (Crear y editar…)
+                            o reutilizar uno existente. También se gestionan en el menú
+                            <b>Agendamiento → Horarios de trabajo</b>.
+                        </div>
+                    </group>
                     <div class="alert alert-info" role="status" style="margin-top:8px"
                          invisible="user_id">
                         <i class="fa fa-info-circle"/>

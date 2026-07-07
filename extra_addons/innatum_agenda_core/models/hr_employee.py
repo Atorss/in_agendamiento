@@ -23,8 +23,20 @@ class HrEmployee(models.Model):
         'innatum_agenda_employee_servicio_rel',
         'employee_id', 'servicio_id',
         string='Servicios que atiende',
-        help='Servicios del catálogo que este colaborador brinda. La '
-             'planificación de sus horarios los toma por defecto.',
+        domain="[('company_id', '=', company_id)]",
+        help='Servicios de la empresa que este colaborador brinda. La '
+             'planificación de sus horarios los toma por defecto. Es el '
+             'inverso de "Operadores que lo realizan" en el servicio.',
+    )
+
+    # Modo de agenda de la empresa del colaborador, para condicionar la
+    # visibilidad del horario de trabajo en la ficha de Personal (el horario
+    # solo es relevante en modo 'directa', donde la disponibilidad se calcula
+    # a partir de resource_calendar_id).
+    agenda_modo = fields.Selection(
+        related='company_id.agenda_modo',
+        string='Modo de agenda de la empresa',
+        readonly=True,
     )
 
     def _check_caller_can_manage(self):

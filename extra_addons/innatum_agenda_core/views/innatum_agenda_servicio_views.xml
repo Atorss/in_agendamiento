@@ -1,60 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- LIST VIEW (read-only para tenant; CRUD para Innatum admin que la
-         hereda en innatum_agenda_planes) -->
+    <!-- LIST VIEW (el tenant administra sus servicios; Innatum los ve todos) -->
     <record id="innatum_agenda_servicio_view_list" model="ir.ui.view">
         <field name="name">innatum.agenda.servicio.list</field>
         <field name="model">innatum.agenda.servicio</field>
         <field name="arch" type="xml">
-            <list duplicate="0" string="Servicios" create="false" delete="false">
-                <field name="code"/>
+            <list duplicate="0" string="Servicios">
+                <field name="code" optional="show"/>
                 <field name="name"/>
+                <field name="company_id" optional="hide" groups="base.group_multi_company"/>
+                <field name="duracion" optional="show"/>
+                <field name="color" widget="color_picker" optional="show"/>
+                <field name="publicar_web" widget="boolean_toggle" optional="show"/>
                 <field name="description" optional="hide"/>
                 <field name="active" widget="boolean_toggle" optional="show"/>
             </list>
         </field>
     </record>
 
-    <!-- FORM VIEW (read-only para tenant) -->
+    <!-- FORM VIEW (editable por el Admin del tenant; la ACL/record rule
+         restringe quién puede crear/editar y a qué company) -->
     <record id="innatum_agenda_servicio_view_form" model="ir.ui.view">
         <field name="name">innatum.agenda.servicio.form</field>
         <field name="model">innatum.agenda.servicio</field>
         <field name="arch" type="xml">
-            <form duplicate="0" string="Servicio" create="false" edit="false" delete="false">
+            <form duplicate="0" string="Servicio">
                 <sheet>
-                    <field name="image_1920" widget="image" class="oe_avatar" readonly="1"/>
+                    <field name="image_1920" widget="image" class="oe_avatar"/>
                     <div class="oe_title">
                         <label for="name"/>
-                        <h1><field name="name" readonly="1"/></h1>
+                        <h1><field name="name" placeholder="Ej: Odontología (control)"/></h1>
                     </div>
                     <group>
                         <group>
-                            <field name="code" readonly="1"/>
-                            <field name="active" readonly="1"/>
+                            <field name="code" placeholder="(se autogenera si lo dejás vacío)"/>
+                            <!-- Compañía BLOQUEADA: el servicio pertenece al tenant actual
+                                 (default = env.company) y no puede reasignarse desde aquí.
+                                 El aislamiento real lo garantiza el record rule
+                                 rule_servicio_multi_company (company_id in company_ids). -->
+                            <field name="company_id" readonly="1" groups="base.group_multi_company"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="publicar_web"/>
+                            <field name="color" widget="color_picker"/>
                         </group>
                     </group>
+                    <group string="Duración (modo de agenda directa)">
+                        <group>
+                            <field name="duracion"/>
+                            <field name="duracion_variable"/>
+                        </group>
+                        <group>
+                            <field name="duracion_min" invisible="not duracion_variable"/>
+                            <field name="duracion_max" invisible="not duracion_variable"/>
+                        </group>
+                    </group>
+                    <group string="Operadores que realizan este servicio">
+                        <field name="operador_ids" nolabel="1" widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                    </group>
                     <group string="Descripción">
-                        <field name="description" nolabel="1" readonly="1"/>
+                        <field name="description" nolabel="1"/>
                     </group>
                 </sheet>
             </form>
         </field>
     </record>
 
-    <!-- ACTION para el menú del tenant (read-only) -->
+    <!-- ACTION para el menú del tenant (CRUD) -->
     <record id="innatum_agenda_servicio_action" model="ir.actions.act_window">
         <field name="name">Servicios</field>
         <field name="res_model">innatum.agenda.servicio</field>
         <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Sin servicios disponibles
+                Crea tu primer servicio
             </p>
             <p>
-                Los servicios son administrados por Innatum y se habilitan
-                para tu tenant al momento de tu suscripción. Si necesitas
-                un servicio adicional, contacta al equipo de Innatum.
+                Definí los servicios que ofrece tu negocio (nombre, duración,
+                qué operadores los realizan y si se ofrecen online). Cada
+                empresa administra sus propios servicios.
             </p>
         </field>
     </record>

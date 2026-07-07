@@ -155,7 +155,7 @@ class ChatbotController(http.Controller):
         # Listar servicios con disponibilidad (solo del tenant)
         Servicio = request.env['innatum.agenda.servicio'].sudo()
         Turno = request.env['innatum.agenda.turno'].sudo()
-        servicios = Servicio.search([('company_ids', 'in', [company.id])])
+        servicios = Servicio.search([('company_id', 'in', [company.id])])
 
         svc_disponibles = []
         for s in servicios:
@@ -296,7 +296,7 @@ class ChatbotController(http.Controller):
         # Listar servicios con disponibilidad (solo del tenant)
         Servicio = request.env['innatum.agenda.servicio'].sudo()
         Turno = request.env['innatum.agenda.turno'].sudo()
-        servicios = Servicio.search([('company_ids', 'in', [company.id])])
+        servicios = Servicio.search([('company_id', 'in', [company.id])])
 
         svc_disponibles = []
         for s in servicios:
@@ -449,7 +449,7 @@ class ChatbotController(http.Controller):
         company = self._tenant_company()
         servicio = request.env['innatum.agenda.servicio'].sudo().search([
             ('code', '=ilike', code),
-            ('company_ids', 'in', [company.id]),
+            ('company_id', 'in', [company.id]),
         ], limit=1)
         service_name = servicio.name if servicio else code
 
@@ -526,7 +526,10 @@ class ChatbotController(http.Controller):
         if not turno_id:
             return {'success': False, 'error': 'ID de turno requerido.'}
 
-        params = {'turno_id': int(turno_id)}
+        # En modo directo turno_id es un token opaco ('D|prof|iso'); en modo
+        # planificada es un id numérico. reserve_existing maneja ambos, así que
+        # NO casteamos a int (rompería el token).
+        params = {'turno_id': turno_id}
         if servicio_codigo:
             params['servicio_codigo'] = servicio_codigo
         result = engine._tool_reservar_turno(params, session=session)

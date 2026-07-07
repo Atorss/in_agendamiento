@@ -47,6 +47,10 @@
                                    options="{'no_create': True, 'no_create_edit': True, 'no_open': True}"/>
                         </group>
                     </group>
+                    <group string="Agenda">
+                        <field name="vertical"/>
+                        <field name="agenda_modo"/>
+                    </group>
                 </sheet>
             </form>
         </field>

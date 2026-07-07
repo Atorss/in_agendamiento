@@ -46,6 +46,8 @@
                     <button name="action_done" string="Finalizar" type="object" class="btn-success" icon="fa-check-circle" invisible="state != 'confirmed'"/>
                     <button name="action_cancel" string="Cancelar" type="object" class="btn-secondary" icon="fa-times" invisible="state in ('done', 'cancelled')"/>
                     <button name="action_free" string="Liberar" type="object" class="btn-warning" icon="fa-unlock" invisible="state not in ('reserved', 'confirmed')"/>
+                    <button name="action_derivar" string="Derivar" type="object" class="btn-secondary" icon="fa-share" invisible="not partner_id or state not in ('reserved', 'confirmed', 'done') or tiene_derivacion"/>
+                    <button name="action_elegir_horario_calendario" string="Elegir horario en calendario" type="object" class="btn-secondary" icon="fa-calendar" invisible="not professional_id or state not in ('available', 'reserved')"/>
                     <field name="state" widget="statusbar" statusbar_visible="available,reserved,confirmed,done"/>
                 </header>
                 <sheet>
@@ -59,31 +61,44 @@
                     <group>
                         <group string="Servicio y Profesional">
                             <field name="is_usuario_only" invisible="1"/>
+                            <field name="tiene_derivacion" invisible="1"/>
                             <field name="servicio_count" invisible="1"/>
                             <field name="domain_servicio_ids" invisible="1" widget="many2many_tags"/>
+                            <!-- Servicios que el profesional elegido atiende:
+                                 fuente del domain de "Servicio elegido". Cada
+                                 profesional solo puede brindar sus servicios
+                                 registrados. -->
+                            <field name="servicios_profesional_ids" invisible="1"
+                                   widget="many2many_tags"/>
+                            <!-- Servicios ofrecidos (servicio_ids): campo interno.
+                                 Se mantiene INVISIBLE en el form (confunde al
+                                 usuario) pero presente, porque provee el domain
+                                 del "Servicio elegido" cuando el turno viene de
+                                 una planificación. -->
                             <field name="servicio_ids" widget="many2many_tags"
-                                   readonly="state != 'available'"
-                                   invisible="state != 'available'"
-                                   domain="[('id', 'in', domain_servicio_ids)]"
-                                   options="{'no_create': True, 'no_create_edit': True}"/>
-                            <field name="servicio_id"
-                                   string="Servicio elegido"
-                                   readonly="state in ('done', 'cancelled')"
-                                   required="state != 'available'"
-                                   invisible="state == 'available' and servicio_count &gt; 1"
-                                   domain="[('id', 'in', servicio_ids or domain_servicio_ids)]"
-                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                                   invisible="1"/>
+                            <!-- Primero el profesional, luego el servicio: el
+                                 domain del servicio depende del profesional. -->
                             <field name="professional_id"
                                    readonly="is_usuario_only or state in ('done', 'cancelled')"
                                    force_save="1"
                                    widget="many2one_avatar_employee"
                                    options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="servicio_id"
+                                   string="Servicio elegido"
+                                   readonly="not professional_id or state in ('done', 'cancelled')"
+                                   required="state != 'available'"
+                                   domain="[('id', 'in', servicio_ids or servicios_profesional_ids)]"
+                                   placeholder="Elegí primero el profesional..."
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="config_id" readonly="1" invisible="not config_id"/>
                         </group>
                         <group string="Horario">
                             <field name="date_start" readonly="state in ('done', 'cancelled')"/>
-                            <field name="date_end"/>
-                            <field name="duration" widget="float_time"/>
+                            <field name="date_end"
+                                   readonly="state in ('done', 'cancelled')"
+                                   help="Por defecto = inicio + duración del servicio. Editalo para alargar/acortar este turno."/>
+                            <field name="duration" widget="float_time" readonly="1"/>
                             <field name="publicar" readonly="state in ('done', 'cancelled')"/>
                         </group>
                     </group>
@@ -189,12 +204,15 @@
         <field name="name">innatum.agenda.turno.calendar</field>
         <field name="model">innatum.agenda.turno</field>
         <field name="arch" type="xml">
-            <calendar string="Turnos" date_start="date_start" date_stop="date_end" color="state" mode="week" event_open_popup="1" quick_create="0">
+            <!-- color="color": cada turno se pinta con el color de su servicio.
+                 Para ver por profesional está el filtro professional_id. -->
+            <calendar string="Turnos" date_start="date_start" date_stop="date_end" color="color" mode="week" event_open_popup="1" quick_create="0">
                 <field name="name"/>
                 <field name="professional_id" widget="many2one_avatar_employee" filters="1"/>
                 <field name="partner_id"/>
                 <field name="servicio_id"/>
                 <field name="state"/>
+                <field name="color" invisible="1"/>
             </calendar>
         </field>
     </record>
@@ -231,6 +249,7 @@
         <field name="res_model">innatum.agenda.turno</field>
         <field name="view_mode">kanban,list,calendar,form</field>
         <field name="search_view_id" ref="innatum_agenda_turno_view_search"/>
+        <field name="domain">[('state', 'not in', ('derivado', 'propuesto'))]</field>
         <field name="context">{'search_default_today': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">

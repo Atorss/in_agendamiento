@@ -44,12 +44,17 @@ class AppointmentController(http.Controller):
             return True
         return not employee.user_id.has_group('base.group_system')
 
+    def _av(self):
+        return request.env['innatum.agenda.availability'].sudo()
+
     @http.route(['/', '/inicio'], type='http', auth='public', website=True, sitemap=True)
     def homepage(self, **kwargs):
         """Página principal del negocio.
         Muestra solo empleados que tienen al menos una planificación aprobada
         Y turnos disponibles, junto con los servicios que brindan."""
         company = self._tenant_company()
+        if company.agenda_modo == 'directa':
+            return self._homepage_directa(company)
         Employee = request.env['hr.employee'].sudo()
         profesionales = Employee.search([
             ('active', '=', True),
@@ -89,7 +94,7 @@ class AppointmentController(http.Controller):
 
         # Servicios con disponibilidad para la sección de servicios
         Servicio = request.env['innatum.agenda.servicio'].sudo()
-        servicios = Servicio.search([('company_ids', 'in', [company.id])])
+        servicios = Servicio.search([('company_id', 'in', [company.id])])
         servicios_disponibles = servicios.filtered(
             lambda s: Turno.search([
                 ('servicio_ids', 'in', s.id),
@@ -109,6 +114,30 @@ class AppointmentController(http.Controller):
         return request.render(template, {
             'company': company,
             'profesionales': prof_con_turnos,
+            'servicios': servicios_disponibles,
+            'prof_con_foto': prof_con_foto,
+            'prof_servicios': prof_servicios,
+        })
+
+    def _homepage_directa(self, company):
+        """Homepage en modo de agenda directa: profesionales = operadores de
+        los servicios publicados; servicios = los publicados con operadores."""
+        Servicio = request.env['innatum.agenda.servicio'].sudo()
+        servicios = Servicio.search([
+            ('company_id', '=', company.id), ('publicar_web', '=', True)])
+        servicios_disponibles = servicios.filtered(lambda s: s.operador_ids)
+        profs = servicios_disponibles.mapped('operador_ids').filtered(
+            lambda e: e.active and self._es_profesional_publico(e))
+        prof_servicios = {}
+        for p in profs:
+            servs = servicios_disponibles.filtered(lambda s: p in s.operador_ids)
+            prof_servicios[p.id] = [{'name': s.name, 'code': s.code} for s in servs]
+        prof_con_foto = {
+            p.id for p in profs if p.image_1920 and len(p.image_1920) > 1000}
+        template = self._homepage_template(company)
+        return request.render(template, {
+            'company': company,
+            'profesionales': profs,
             'servicios': servicios_disponibles,
             'prof_con_foto': prof_con_foto,
             'prof_servicios': prof_servicios,
@@ -138,9 +167,14 @@ class AppointmentController(http.Controller):
     def appointment_form(self, **kwargs):
         """Muestra el formulario público de agendamiento."""
         company = self._tenant_company()
-        servicios = request.env['innatum.agenda.servicio'].sudo().search([
-            ('company_ids', 'in', [company.id]),
-        ])
+        serv_domain = [('company_id', '=', company.id)]
+        if company.agenda_modo == 'directa':
+            # En modo directo solo se ofrecen online los servicios marcados
+            # como publicar_web (y que tengan operadores asignados).
+            serv_domain.append(('publicar_web', '=', True))
+        servicios = request.env['innatum.agenda.servicio'].sudo().search(serv_domain)
+        if company.agenda_modo == 'directa':
+            servicios = servicios.filtered(lambda s: s.operador_ids)
         countries = request.env['res.country'].sudo().search([], order='name')
         default_country = company.country_id or request.env.ref(
             'base.ec', raise_if_not_found=False,
@@ -161,6 +195,14 @@ class AppointmentController(http.Controller):
         try:
             servicio_id = int(servicio_id)
             company = self._tenant_company()
+            if company.agenda_modo == 'directa':
+                servicio = request.env['innatum.agenda.servicio'].sudo().browse(servicio_id)
+                if not servicio.exists() or servicio.company_id != company:
+                    return {'success': True, 'professionals': []}
+                prof_ids = servicio.operador_ids.filtered(
+                    lambda e: e.active and self._es_profesional_publico(e))
+                return {'success': True, 'professionals': [
+                    {'id': p.id, 'name': p.name} for p in prof_ids]}
             Turno = request.env['innatum.agenda.turno'].sudo()
             turnos = Turno.search([
                 ('servicio_ids', 'in', servicio_id),
@@ -188,6 +230,21 @@ class AppointmentController(http.Controller):
             servicio_id = int(servicio_id)
             professional_id = int(professional_id)
             company = self._tenant_company()
+            tz = self._tenant_tz()
+            if company.agenda_modo == 'directa':
+                servicio = request.env['innatum.agenda.servicio'].sudo().browse(servicio_id)
+                prof = request.env['hr.employee'].sudo().browse(professional_id)
+                dt_from = datetime.utcnow()
+                dt_to = dt_from + timedelta(days=30)
+                slots = self._av().free_slots(
+                    prof, servicio, dt_from, dt_to,
+                    duration_min=servicio.duracion)
+                fechas = set()
+                for st in slots:
+                    local_dt = fields.Datetime.context_timestamp(
+                        request.env.user.with_context(tz=tz), st)
+                    fechas.add(local_dt.strftime('%Y-%m-%d'))
+                return {'success': True, 'dates': sorted(list(fechas))}
             Turno = request.env['innatum.agenda.turno'].sudo()
             turnos = Turno.search([
                 ('servicio_ids', 'in', servicio_id),
@@ -197,7 +254,6 @@ class AppointmentController(http.Controller):
                 ('date_start', '>=', fields.Datetime.now()),
                 ('company_id', '=', company.id),
             ], order='date_start asc')
-            tz = self._tenant_tz()
             fechas = set()
             for t in turnos:
                 local_dt = fields.Datetime.context_timestamp(
@@ -229,6 +285,27 @@ class AppointmentController(http.Controller):
             fin_dia = tz.localize(fecha_local.replace(
                 hour=23, minute=59, second=59,
             )).astimezone(pytz.UTC).replace(tzinfo=None)
+
+            if company.agenda_modo == 'directa':
+                servicio = request.env['innatum.agenda.servicio'].sudo().browse(servicio_id)
+                prof = request.env['hr.employee'].sudo().browse(professional_id)
+                dur = int(servicio.duracion or 30)
+                slots_dt = self._av().free_slots(
+                    prof, servicio, inicio_dia, fin_dia,
+                    duration_min=dur, granularity_min=dur)
+                slots = []
+                for st in slots_dt:
+                    local_dt = fields.Datetime.context_timestamp(
+                        request.env.user.with_context(tz=tz_name), st)
+                    # En modo directo el turno aún no existe: el id es un token
+                    # opaco 'D|prof|iso' que /citas/submit sabe interpretar.
+                    token = 'D|%d|%s' % (prof.id, st.strftime('%Y-%m-%dT%H:%M:%S'))
+                    slots.append({
+                        'id': token,
+                        'hora': local_dt.strftime('%H:%M'),
+                        'duracion': dur,
+                    })
+                return {'success': True, 'slots': slots}
 
             Turno = request.env['innatum.agenda.turno'].sudo()
             turnos = Turno.search([
@@ -322,12 +399,108 @@ class AppointmentController(http.Controller):
             reverse=True,
         )[0]
 
+    def _get_or_create_partner(self, company, post):
+        """Busca el partner del tenant por VAT o lo crea con los datos del
+        formulario. Completa mobile/email si faltaban. Usado por ambos modos."""
+        vat = post.get('vat', '').strip()
+        Partner = request.env['res.partner'].sudo()
+        partner = self._find_partner_by_vat(vat)
+        form_phone = post.get('phone', '').strip()
+        form_email = post.get('email', '').strip()
+        if not partner:
+            vals = {
+                'name': post.get('name', '').strip(),
+                'vat': vat,
+                'mobile': form_phone,
+                'email': form_email,
+                'street': post.get('street', '').strip(),
+                'city': post.get('city', '').strip(),
+                'company_id': company.id,
+            }
+            country_id = post.get('country_id')
+            if country_id:
+                vals['country_id'] = int(country_id)
+            state_id = post.get('state_id')
+            if state_id:
+                vals['state_id'] = int(state_id)
+            street2 = post.get('street2', '').strip()
+            if street2:
+                vals['street2'] = street2
+            partner = Partner.create(vals)
+        else:
+            update_vals = {}
+            if form_phone and not (partner.mobile or partner.phone):
+                update_vals['mobile'] = form_phone
+            if form_email and not partner.email:
+                update_vals['email'] = form_email
+            if update_vals:
+                partner.write(update_vals)
+        return partner
+
+    def _submit_directa(self, company, post):
+        """Reserva en modo de agenda directa: el turno_id es un token opaco;
+        el turno se crea on-demand vía las primitives (reserve_existing
+        detecta el token y delega en reserve_directo)."""
+        try:
+            token = (post.get('turno_id') or '').strip()
+            if not token.startswith('D|'):
+                return request.render(
+                    'innatum_agenda_web.appointment_error_template', {
+                        'error': 'El horario seleccionado no es válido. '
+                                 'Por favor, seleccione otro.',
+                    })
+            servicio_form = post.get('servicio_id')
+            servicio = request.env['innatum.agenda.servicio'].sudo().browse(
+                int(servicio_form)) if servicio_form else None
+            if (not servicio or not servicio.exists()
+                    or servicio.company_id != company):
+                return request.render(
+                    'innatum_agenda_web.appointment_error_template', {
+                        'error': 'Debes elegir un servicio válido.',
+                    })
+            partner = self._get_or_create_partner(company, post)
+            P = request.env['innatum.agenda.scheduling.primitives'].sudo()
+            res = P.reserve_existing(
+                token, partner.id, servicio_code=servicio.code,
+                motivo=post.get('notes', ''), company=company)
+            if not res.get('exito'):
+                return request.render(
+                    'innatum_agenda_web.appointment_error_template', {
+                        'error': res.get('error')
+                        or 'El horario seleccionado ya no está disponible. '
+                           'Por favor, seleccione otro.',
+                    })
+            turno = request.env['innatum.agenda.turno'].sudo().browse(
+                res['turno_id'])
+            if servicio.id not in partner.servicios_consumidos_ids.ids:
+                partner.servicios_consumidos_ids = [(4, servicio.id)]
+            return request.render(
+                'innatum_agenda_web.appointment_success_template', {
+                    'turno': turno,
+                    'cliente': partner,
+                })
+        except ValidationError as e:
+            _logger.info('Validación al agendar cita (directa): %s', e)
+            mensaje = str(e.args[0]) if e.args else (
+                'No fue posible registrar el contacto. Verifique sus datos.')
+            return request.render(
+                'innatum_agenda_web.appointment_error_template', {'error': mensaje})
+        except Exception as e:
+            _logger.error('Error al agendar cita (directa): %s', e)
+            return request.render(
+                'innatum_agenda_web.appointment_error_template', {
+                    'error': 'Ocurrió un error al procesar su solicitud. '
+                             'Por favor, intente nuevamente.',
+                })
+
     @http.route('/citas/submit', type='http', auth='public', website=True,
                 methods=['POST'], csrf=True)
     def submit_appointment(self, **post):
         """Procesa el formulario y reserva el turno."""
         try:
             company = self._tenant_company()
+            if company.agenda_modo == 'directa':
+                return self._submit_directa(company, post)
             turno_id = int(post.get('turno_id', 0))
             Turno = request.env['innatum.agenda.turno'].sudo()
             turno = Turno.browse(turno_id)
@@ -342,43 +515,7 @@ class AppointmentController(http.Controller):
                 })
 
             # Buscar o crear contacto dentro de este tenant
-            vat = post.get('vat', '').strip()
-            Partner = request.env['res.partner'].sudo()
-            partner = self._find_partner_by_vat(vat)
-
-            form_phone = post.get('phone', '').strip()
-            form_email = post.get('email', '').strip()
-
-            if not partner:
-                vals = {
-                    'name': post.get('name', '').strip(),
-                    'vat': vat,
-                    'mobile': form_phone,
-                    'email': form_email,
-                    'street': post.get('street', '').strip(),
-                    'city': post.get('city', '').strip(),
-                    'company_id': company.id,
-                }
-                country_id = post.get('country_id')
-                if country_id:
-                    vals['country_id'] = int(country_id)
-                state_id = post.get('state_id')
-                if state_id:
-                    vals['state_id'] = int(state_id)
-                street2 = post.get('street2', '').strip()
-                if street2:
-                    vals['street2'] = street2
-                partner = Partner.create(vals)
-            else:
-                # Si el partner existe pero le faltan mobile/email, los
-                # completamos con lo que el cliente acaba de tipear.
-                update_vals = {}
-                if form_phone and not (partner.mobile or partner.phone):
-                    update_vals['mobile'] = form_phone
-                if form_email and not partner.email:
-                    update_vals['email'] = form_email
-                if update_vals:
-                    partner.write(update_vals)
+            partner = self._get_or_create_partner(company, post)
 
             # Determinar el servicio elegido (puede venir explícito en el form,
             # o si el turno tiene una sola opción, usar esa).

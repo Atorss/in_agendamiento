@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Calendario unificado (solo lectura): turnos + bloqueos juntos.
+         Colorea por tipo; filtros por profesional y tipo. Para CREAR turnos
+         o bloqueos se usan sus propios menús. -->
+    <record id="innatum_agenda_calendario_view_calendar" model="ir.ui.view">
+        <field name="name">innatum.agenda.calendario.calendar</field>
+        <field name="model">innatum.agenda.calendario</field>
+        <field name="arch" type="xml">
+            <!-- color="color": el turno se pinta con el color de su servicio;
+                 el bloqueo con su propio color. Para distinguir por profesional
+                 se usa el panel de filtros de la derecha (professional_id). -->
+            <calendar string="Calendario" date_start="date_start"
+                      date_stop="date_end" color="color" mode="week"
+                      event_open_popup="1" quick_create="0" create="0">
+                <!-- Filtro lateral de profesionales persistido por usuario
+                     (write_model). Por defecto el calendario abre filtrado al
+                     profesional del usuario logueado; desde el panel se puede
+                     agregar a otros o marcar "Todo". -->
+                <field name="professional_id" filters="1"
+                       write_model="innatum.agenda.calendario.filtro"
+                       write_field="professional_id"
+                       filter_field="checked"
+                       color="professional_id"/>
+                <field name="tipo" filters="1"/>
+                <field name="partner_id"/>
+                <field name="servicio_id"/>
+                <field name="estado"/>
+            </calendar>
+        </field>
+    </record>
+
+    <record id="innatum_agenda_calendario_action" model="ir.actions.act_window">
+        <field name="name">Calendario</field>
+        <field name="res_model">innatum.agenda.calendario</field>
+        <field name="view_mode">calendar</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Aquí verás turnos y bloqueos juntos
+            </p>
+            <p>
+                Vista unificada de la ocupación de tus profesionales (citas +
+                bloqueos). Para crear, usá los menús Turnos y Bloqueos.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="innatum_agenda_menu_calendario" name="Calendario"
+              parent="innatum_agenda_menu_root"
+              action="innatum_agenda_calendario_action"
+              sequence="8"/>
+
+</odoo>

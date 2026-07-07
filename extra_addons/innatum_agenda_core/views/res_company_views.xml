@@ -9,6 +9,7 @@
             <xpath expr="//sheet" position="inside">
                 <group string="Innatum Agenda" name="innatum_agenda">
                     <field name="vertical"/>
+                    <field name="agenda_modo"/>
                 </group>
             </xpath>
         </field>

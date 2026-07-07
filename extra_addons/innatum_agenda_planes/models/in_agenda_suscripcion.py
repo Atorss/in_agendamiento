@@ -90,14 +90,13 @@ class InAgendaSuscripcion(models.Model):
         store=True, digits=(12, 2),
         help='Plan base + add-ons vigentes, según el ciclo.')
 
-    # --- Servicios del catálogo habilitados para el tenant (M2M inverso a
-    #     servicio.company_ids). Permite ver/agregar/quitar desde la suscripción. ---
+    # --- Servicios del tenant (solo lectura). Cada tenant administra sus
+    #     propios servicios; aquí Innatum los ve listados por suscripción. ---
     servicio_ids = fields.Many2many(
-        'innatum.agenda.servicio', string='Servicios habilitados',
-        compute='_compute_servicio_ids', inverse='_inverse_servicio_ids',
-        help='Servicios del catálogo Innatum habilitados para este tenant. '
-             'No se puede quitar un servicio que ya tiene planificaciones '
-             'creadas para el tenant.')
+        'innatum.agenda.servicio', string='Servicios del tenant',
+        compute='_compute_servicio_ids',
+        help='Servicios que el tenant tiene creados (los administra él mismo '
+             'desde su backend). Solo lectura.')
 
     state = fields.Selection([
         ('trial', 'Trial'),
@@ -182,35 +181,7 @@ class InAgendaSuscripcion(models.Model):
         Serv = self.env['innatum.agenda.servicio'].sudo()
         for rec in self:
             rec.servicio_ids = Serv.search(
-                [('company_ids', 'in', rec.company_id.id)]) if rec.company_id else False
-
-    def _inverse_servicio_ids(self):
-        """Sincroniza servicio.company_ids con la company del tenant.
-        Al QUITAR un servicio, valida que no tenga planificaciones creadas
-        para este tenant (si las tiene, bloquea)."""
-        Serv = self.env['innatum.agenda.servicio'].sudo()
-        Config = self.env['innatum.agenda.config'].sudo()
-        for rec in self:
-            company = rec.company_id
-            if not company:
-                continue
-            deseados = rec.servicio_ids
-            actuales = Serv.search([('company_ids', 'in', company.id)])
-            for s in (actuales - deseados):
-                n_plan = Config.search_count([
-                    ('company_id', '=', company.id),
-                    ('servicio_ids', 'in', s.id),
-                ])
-                if n_plan:
-                    raise ValidationError(_(
-                        'No se puede quitar el servicio «%(serv)s»: ya tiene '
-                        '%(n)d planificación(es) creada(s) para este tenant. '
-                        'Elimina primero esas planificaciones.',
-                        serv=s.name, n=n_plan,
-                    ))
-                s.write({'company_ids': [(3, company.id)]})
-            for s in (deseados - actuales):
-                s.write({'company_ids': [(4, company.id)]})
+                [('company_id', '=', rec.company_id.id)]) if rec.company_id else False
 
     @api.onchange('fecha_inicio', 'ciclo_facturacion')
     def _onchange_vigencia(self):

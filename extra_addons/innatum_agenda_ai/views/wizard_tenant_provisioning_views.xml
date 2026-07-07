@@ -22,7 +22,7 @@
                     <group>
                         <field name="vertical_template_id"
                                required="1"
-                               options="{'no_create': True}"/>
+                               options="{'no_quick_create': True}"/>
                         <field name="bot_name"
                                placeholder="Sofía, Asistente, etc."/>
                     </group>

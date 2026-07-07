@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Acción cliente OWL: el calendario interactivo de turnos.
+         No usa act_window porque la UI es un componente OWL propio. -->
+    <record id="action_innatum_agenda_calendar" model="ir.actions.client">
+        <field name="name">Calendario Interactivo</field>
+        <field name="tag">innatum_agenda_calendar.calendar</field>
+    </record>
+
+    <!-- Menú dentro de "Agendamiento". Se llama "Calendario Interactivo" para
+         distinguirlo del menú "Calendario" nativo del core (vista calendar
+         estándar de Odoo). Hereda la visibilidad del menú raíz del core. -->
+    <menuitem id="innatum_agenda_menu_calendar"
+              name="Calendario Interactivo"
+              parent="innatum_agenda_core.innatum_agenda_menu_root"
+              action="action_innatum_agenda_calendar"
+              sequence="5"/>
+
+</odoo>

@@ -41,6 +41,11 @@
                             string="Editar servicios" class="btn-secondary"
                             context="{'default_employee_id': id}"
                             groups="innatum_agenda_core.innatum_agenda_group_admin"/>
+                    <button name="%(action_in_agenda_colaborador_horario_wizard)d" type="action"
+                            string="Cambiar horario" class="btn-secondary"
+                            context="{'default_employee_id': id}"
+                            invisible="agenda_modo != 'directa'"
+                            groups="innatum_agenda_core.innatum_agenda_group_admin"/>
                     <button name="action_desactivar_colaborador" type="object"
                             string="Desactivar" class="btn-warning"
                             invisible="not active"
@@ -70,6 +75,15 @@
                     <group string="Servicios que atiende">
                         <field name="servicio_ids" nolabel="1" readonly="1"
                                widget="many2many_tags"/>
+                    </group>
+                    <!-- Horario de trabajo: solo en modo directa (donde define
+                         la disponibilidad). Solo lectura; se cambia con el
+                         botón "Cambiar horario" del encabezado. -->
+                    <field name="agenda_modo" invisible="1"/>
+                    <group string="Horario de trabajo"
+                           invisible="agenda_modo != 'directa'">
+                        <field name="resource_calendar_id" readonly="1"
+                               string="Horario asignado"/>
                     </group>
                 </sheet>
                 <!-- Chatter omitido: incluye activity_ids/message_ids que
