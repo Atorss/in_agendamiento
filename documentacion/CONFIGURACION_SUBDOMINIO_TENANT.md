@@ -49,23 +49,23 @@ Si el dominio está incorrecto, corregirlo:
 ```bash
 docker exec in_agendamiento_db psql -U odoo -d agendamiento -c "
 UPDATE website
-SET domain = 'https://SUBDOMINIO.innatum.es'
+SET domain = 'https://SUBDOMINIO.innatum.cloud'
 WHERE id = ID_DEL_WEBSITE
 RETURNING id, name, domain;"
 ```
 
 ### Paso 2: Configurar DNS
 
-En el proveedor de dominio (donde se gestiona `innatum.es`), agregar un registro:
+En el proveedor de dominio (donde se gestiona `innatum.cloud`), agregar un registro:
 
 ```
-SUBDOMINIO.innatum.es  →  A record  →  [IP del servidor]
+SUBDOMINIO.innatum.cloud  →  A record  →  [IP del servidor]
 ```
 
 O usando CNAME:
 
 ```
-SUBDOMINIO.innatum.es  →  CNAME  →  innatum.es
+SUBDOMINIO.innatum.cloud  →  CNAME  →  innatum.cloud
 ```
 
 **Esperar propagación DNS** (puede tomar entre 5 minutos y 24 horas).
@@ -87,7 +87,7 @@ curl -s -X POST "http://localhost:81/api/nginx/proxy-hosts" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "domain_names": ["SUBDOMINIO.innatum.es"],
+    "domain_names": ["SUBDOMINIO.innatum.cloud"],
     "forward_scheme": "http",
     "forward_host": "in_agendamiento_web",
     "forward_port": 8069,
@@ -103,6 +103,42 @@ curl -s -X POST "http://localhost:81/api/nginx/proxy-hosts" \
 
 Guardar el `id` del proxy host creado (ej: `"id": 10`).
 
+> ⚠️ **OBLIGATORIO: configuración avanzada de Nginx (websocket / gzip / body size).**
+> El proxy host debe llevar una `advanced_config` **idéntica a la del dominio
+> principal `innatum.cloud`**. Sin ella, las peticiones `/websocket` de Odoo van
+> al puerto HTTP (8069) en lugar del puerto de eventos (8072) y el servidor falla
+> con `Couldn't bind the websocket. Is the connection opened on the evented port
+> (8072)?`. Consecuencia: el bus del frontend nunca conecta y **NO cargan los
+> widgets del sitio web (ej. el botón del chatbot IA no aparece)**.
+>
+> Esta `advanced_config` se asigna en el Paso 6 (PUT). El bloque exacto:
+>
+> ```nginx
+> client_max_body_size 500m;
+>
+> gzip on;
+> gzip_vary on;
+> gzip_proxied any;
+> gzip_comp_level 5;
+> gzip_min_length 1024;
+> gzip_buffers 16 8k;
+> gzip_types text/plain text/css text/xml application/json application/javascript application/x-javascript application/xml application/xml+rss image/svg+xml font/woff font/woff2 application/wasm;
+>
+> location /websocket {
+>     proxy_pass http://in_agendamiento_web:8072;
+>     proxy_set_header Upgrade $http_upgrade;
+>     proxy_set_header Connection "upgrade";
+>     proxy_set_header Host $host;
+>     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+>     proxy_set_header X-Forwarded-Proto $scheme;
+>     proxy_set_header X-Real-IP $remote_addr;
+>     proxy_read_timeout 720s;
+>     proxy_send_timeout 720s;
+> }
+> ```
+>
+> El script `crear_subdominio.sh` ya incluye este bloque automáticamente.
+
 ### Paso 5: Crear Certificado SSL Let's Encrypt
 
 ```bash
@@ -111,7 +147,7 @@ curl -s -X POST "http://localhost:81/api/nginx/certificates" \
   -H "Content-Type: application/json" \
   -d '{
     "provider": "letsencrypt",
-    "domain_names": ["SUBDOMINIO.innatum.es"],
+    "domain_names": ["SUBDOMINIO.innatum.cloud"],
     "meta": {}
   }' --max-time 120
 ```
@@ -127,7 +163,7 @@ curl -s -X PUT "http://localhost:81/api/nginx/proxy-hosts/ID_PROXY_HOST" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "domain_names": ["SUBDOMINIO.innatum.es"],
+    "domain_names": ["SUBDOMINIO.innatum.cloud"],
     "forward_scheme": "http",
     "forward_host": "in_agendamiento_web",
     "forward_port": 8069,
@@ -158,7 +194,7 @@ WHERE domain_names::text LIKE '%SUBDOMINIO%';"
 Probar acceso HTTPS:
 
 ```bash
-curl -sI https://SUBDOMINIO.innatum.es | head -5
+curl -sI https://SUBDOMINIO.innatum.cloud | head -5
 ```
 
 Respuesta esperada:
@@ -187,7 +223,7 @@ if [ -z "$SUBDOMINIO" ]; then
     exit 1
 fi
 
-DOMINIO="${SUBDOMINIO}.innatum.es"
+DOMINIO="${SUBDOMINIO}.innatum.cloud"
 NPM_USER="admin@admin.com"
 NPM_PASS="##Xtreme12"
 FORWARD_HOST="in_agendamiento_web"
@@ -336,7 +372,7 @@ ORDER BY w.id;"
 ### Probar conectividad de un subdominio
 
 ```bash
-curl -sI https://SUBDOMINIO.innatum.es | head -10
+curl -sI https://SUBDOMINIO.innatum.cloud | head -10
 ```
 
 ---
@@ -357,9 +393,9 @@ SELECT id, domain_names FROM proxy_host WHERE domain_names::text LIKE '%SUBDOMIN
 Verificar propagación DNS:
 
 ```bash
-nslookup SUBDOMINIO.innatum.es
+nslookup SUBDOMINIO.innatum.cloud
 # o
-dig SUBDOMINIO.innatum.es
+dig SUBDOMINIO.innatum.cloud
 ```
 
 ### Error: Certificado SSL falla
@@ -399,17 +435,17 @@ docker exec nginx-proxy-manager curl -s http://in_agendamiento_web:8069 | head -
 ```
 1. ODOO: Crear tenant via wizard
    └─ Se crea: company + website + usuario admin
-   └─ Configurar dominio: https://SUBDOMINIO.innatum.es
+   └─ Configurar dominio: https://SUBDOMINIO.innatum.cloud
 
 2. DNS: Agregar registro A/CNAME
-   └─ SUBDOMINIO.innatum.es → IP del servidor
+   └─ SUBDOMINIO.innatum.cloud → IP del servidor
 
 3. SERVIDOR: Ejecutar script o comandos manuales
    └─ ./scripts/crear_subdominio.sh SUBDOMINIO
    └─ O seguir pasos 3-7 de este documento
 
 4. VERIFICAR: Probar acceso HTTPS
-   └─ curl -sI https://SUBDOMINIO.innatum.es
+   └─ curl -sI https://SUBDOMINIO.innatum.cloud
 ```
 
 ---

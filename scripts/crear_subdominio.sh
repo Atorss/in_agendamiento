@@ -12,15 +12,46 @@ if [ -z "$SUBDOMINIO" ]; then
     echo "Uso: $0 <subdominio>"
     echo "Ejemplo: $0 clinica-dental"
     echo ""
-    echo "Esto configurara: https://<subdominio>.innatum.es"
+    echo "Esto configurara: https://<subdominio>.innatum.cloud"
     exit 1
 fi
 
-DOMINIO="${SUBDOMINIO}.innatum.es"
+DOMINIO="${SUBDOMINIO}.innatum.cloud"
 NPM_USER="admin@admin.com"
 NPM_PASS="##Xtreme12"
 FORWARD_HOST="in_agendamiento_web"
 FORWARD_PORT=8069
+
+# Config avanzada Nginx OBLIGATORIA para Odoo:
+#  - location /websocket -> puerto gevent 8072 (sin esto el bus/websocket de
+#    Odoo falla con "Couldn't bind the websocket" y NO cargan los widgets del
+#    sitio web, ej. el boton del chatbot IA).
+#  - client_max_body_size 500m -> subir adjuntos grandes.
+#  - gzip -> compresion de assets.
+# Debe ser identica a la del dominio principal innatum.cloud.
+read -r -d '' ADVANCED_CONFIG <<EOF
+client_max_body_size 500m;
+
+gzip on;
+gzip_vary on;
+gzip_proxied any;
+gzip_comp_level 5;
+gzip_min_length 1024;
+gzip_buffers 16 8k;
+gzip_types text/plain text/css text/xml application/json application/javascript application/x-javascript application/xml application/xml+rss image/svg+xml font/woff font/woff2 application/wasm;
+
+location /websocket {
+    proxy_pass http://${FORWARD_HOST}:8072;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host \$host;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_read_timeout 720s;
+    proxy_send_timeout 720s;
+}
+EOF
 
 echo "=========================================="
 echo " Configurando: $DOMINIO"
@@ -110,27 +141,35 @@ CERT_EXPIRES=$(echo $CERT_RESULT | jq -r '.expires_on')
 echo "       Certificado creado con ID: $CERT_ID"
 echo "       Expira: $CERT_EXPIRES"
 
-# Asignar certificado al proxy host
-echo "[4/4] Asignando certificado SSL y habilitando HTTPS..."
+# Asignar certificado al proxy host + config avanzada (websocket/gzip/body size)
+echo "[4/4] Asignando certificado SSL, config avanzada y habilitando HTTPS..."
+PUT_PAYLOAD=$(jq -n \
+  --arg dom "$DOMINIO" \
+  --arg fh "$FORWARD_HOST" \
+  --argjson fp "$FORWARD_PORT" \
+  --argjson cid "$CERT_ID" \
+  --arg adv "$ADVANCED_CONFIG" \
+  '{
+    domain_names: [$dom],
+    forward_scheme: "http",
+    forward_host: $fh,
+    forward_port: $fp,
+    certificate_id: $cid,
+    ssl_forced: true,
+    http2_support: true,
+    block_exploits: true,
+    allow_websocket_upgrade: true,
+    access_list_id: 0,
+    advanced_config: $adv,
+    caching_enabled: false,
+    meta: {},
+    locations: []
+  }')
+
 UPDATE_RESULT=$(curl -s -X PUT "http://localhost:81/api/nginx/proxy-hosts/$PROXY_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{
-    \"domain_names\": [\"$DOMINIO\"],
-    \"forward_scheme\": \"http\",
-    \"forward_host\": \"$FORWARD_HOST\",
-    \"forward_port\": $FORWARD_PORT,
-    \"certificate_id\": $CERT_ID,
-    \"ssl_forced\": true,
-    \"http2_support\": true,
-    \"block_exploits\": true,
-    \"allow_websocket_upgrade\": true,
-    \"access_list_id\": 0,
-    \"advanced_config\": \"\",
-    \"caching_enabled\": false,
-    \"meta\": {},
-    \"locations\": []
-  }")
+  -d "$PUT_PAYLOAD")
 
 UPDATE_SSL=$(echo $UPDATE_RESULT | jq -r '.ssl_forced')
 if [ "$UPDATE_SSL" == "true" ]; then
