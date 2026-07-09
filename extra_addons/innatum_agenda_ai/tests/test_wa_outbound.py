@@ -93,6 +93,18 @@ class TestQueueTemplate(TestWaOutboundBase):
             self.assertEqual(btn['parameters'],
                              [{'type': 'payload', 'payload': payload}])
 
+    def test_idioma_plantilla_configurable(self):
+        """El código de idioma debe coincidir con el idioma EXACTO con que
+        se aprobaron las plantillas en Meta (p.ej. es_EC); si no coincide,
+        Meta rechaza con #132001 'Template name does not exist in the
+        translation'. Se configura por parámetro, default 'es'."""
+        self.env['ir.config_parameter'].sudo().set_param(
+            'innatum_wa.template_lang', 'es_EC')
+        rec = self.Outbound.queue_template(
+            self.company, '0996706629', 'aviso_agenda', ['Ana', 'x'])
+        self.assertEqual(
+            rec.meta_payload['template']['language']['code'], 'es_EC')
+
     def test_sin_botones_solo_body(self):
         rec = self.Outbound.queue_template(
             self.company, '0996706629', 'aviso_agenda', ['Ana', 'x'])

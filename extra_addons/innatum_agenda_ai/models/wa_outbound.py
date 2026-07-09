@@ -123,6 +123,11 @@ class InnatumWaOutbound(models.Model):
                 'WA outbound: número inválido %r (tenant %s, plantilla %s)',
                 to_number, company.name, template_name)
             return self.browse()
+        # Debe coincidir EXACTO con el idioma de aprobación de las
+        # plantillas en Meta (p.ej. es_EC); si difiere, Meta responde
+        # #132001 'Template name does not exist in the translation'.
+        lang = (self.env['ir.config_parameter'].sudo().get_param(
+            'innatum_wa.template_lang') or 'es').strip() or 'es'
         components = [{
             'type': 'body',
             'parameters': [
@@ -144,7 +149,7 @@ class InnatumWaOutbound(models.Model):
             'type': 'template',
             'template': {
                 'name': template_name,
-                'language': {'code': 'es'},
+                'language': {'code': lang},
                 'components': components,
             },
         }
