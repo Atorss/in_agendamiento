@@ -30,7 +30,7 @@ class InnatumAgendaTurnoWa(models.Model):
         return records
 
     def _wa_notificar_o_chatter(self, raw, template_name, variables,
-                                category, degrade_msg):
+                                category, degrade_msg, buttons=None):
         """Encola la plantilla si el número es válido; si no, deja el aviso
         en el chatter. Devuelve True si se encoló."""
         self.ensure_one()
@@ -40,7 +40,7 @@ class InnatumAgendaTurnoWa(models.Model):
             return False
         Outbound.queue_template(
             self.company_id, raw, template_name, variables,
-            origin=self, category=category)
+            origin=self, category=category, buttons=buttons)
         return True
 
     def _notificar_derivacion_whatsapp(self):
@@ -48,6 +48,8 @@ class InnatumAgendaTurnoWa(models.Model):
 
         Variables de la plantilla (orden fijo, contrato con Meta):
         1=colaborador, 2=quien deriva, 3=paciente, 4=servicio.
+        El botón quick-reply de la plantilla devuelve st_deriv:<id>: el tap
+        abre esta derivación directo en el chat del colaborador.
         Sin móvil válido: la derivación sigue su flujo normal y queda nota
         en su chatter (el respaldo es el menú Derivaciones del sistema).
         """
@@ -62,6 +64,7 @@ class InnatumAgendaTurnoWa(models.Model):
                 self.partner_id.name or '-',
                 self.servicio_id.name or '-',
             ],
+            buttons=['st_deriv:%d' % self.id],
             category='derivacion_colaborador',
             degrade_msg=_(
                 'No se pudo notificar por WhatsApp a %s: sin número de '
@@ -88,7 +91,9 @@ class InnatumAgendaTurnoWa(models.Model):
 
     def _notificar_paciente_derivacion_propuesta(self):
         """Plantilla `derivacion_paciente` (1=paciente, 2=quien deriva,
-        3=colaborador, 4=servicio)."""
+        3=colaborador, 4=servicio). Botones quick-reply: 'Ver horarios'
+        (dp_deriv:<id>, muestra las propuestas de ESTA derivación) y
+        'Ahora no' (dp_menu:back)."""
         self.ensure_one()
         partner = self.partner_id
         raw = (partner.mobile or partner.phone) if partner else False
@@ -100,6 +105,7 @@ class InnatumAgendaTurnoWa(models.Model):
                 self.professional_id.name or '-',
                 self.servicio_id.name or '-',
             ],
+            buttons=['dp_deriv:%d' % self.id, 'dp_menu:back'],
             category='derivacion_paciente',
             degrade_msg=_(
                 'No se pudo avisar al paciente por WhatsApp: sin número '

@@ -107,12 +107,15 @@ class InnatumWaOutbound(models.Model):
 
     @api.model
     def queue_template(self, company, to_number, template_name, variables,
-                       origin=None, category='prueba'):
+                       origin=None, category='prueba', buttons=None):
         """Encola una plantilla de WhatsApp para el tenant `company`.
 
-        Construye el body Meta completo (idioma 'es'). Devuelve el registro
-        creado, o un recordset vacío si el número no es un celular EC
-        válido (el llamador decide cómo degradar).
+        Construye el body Meta completo (idioma 'es'). `buttons` es una
+        lista opcional de payloads para los botones quick-reply definidos
+        en la plantilla Meta (mismo orden); el tap vuelve por el Gateway
+        como texto con ese payload (p.ej. 'st_deriv:45'). Devuelve el
+        registro creado, o un recordset vacío si el número no es un
+        celular EC válido (el llamador decide cómo degradar).
         """
         to = self.normalize_ec_number(to_number)
         if not to:
@@ -120,6 +123,21 @@ class InnatumWaOutbound(models.Model):
                 'WA outbound: número inválido %r (tenant %s, plantilla %s)',
                 to_number, company.name, template_name)
             return self.browse()
+        components = [{
+            'type': 'body',
+            'parameters': [
+                {'type': 'text', 'text': str(v)} for v in variables
+            ],
+        }]
+        for idx, btn_payload in enumerate(buttons or []):
+            components.append({
+                'type': 'button',
+                'sub_type': 'quick_reply',
+                'index': str(idx),
+                'parameters': [
+                    {'type': 'payload', 'payload': btn_payload},
+                ],
+            })
         payload = {
             'messaging_product': 'whatsapp',
             'to': to,
@@ -127,12 +145,7 @@ class InnatumWaOutbound(models.Model):
             'template': {
                 'name': template_name,
                 'language': {'code': 'es'},
-                'components': [{
-                    'type': 'body',
-                    'parameters': [
-                        {'type': 'text', 'text': str(v)} for v in variables
-                    ],
-                }],
+                'components': components,
             },
         }
         rec = self.sudo().create({

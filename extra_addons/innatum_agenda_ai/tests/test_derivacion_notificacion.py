@@ -74,6 +74,17 @@ class TestNotificacionDerivacion(TransactionCase):
             [p['text'] for p in params],
             ['Dra. Ana', 'Dr. Baratau', 'Juan Pérez', 'Endodoncia'])
 
+    def test_notificacion_lleva_boton_proponer(self):
+        """La plantilla lleva un botón quick-reply cuyo payload abre esa
+        derivación directo en el chat del colaborador (st_deriv:<id>)."""
+        deriv = self._crear_derivacion()
+        comps = self._cola_de(deriv).meta_payload['template']['components']
+        botones = [c for c in comps if c['type'] == 'button']
+        self.assertEqual(len(botones), 1)
+        self.assertEqual(botones[0]['sub_type'], 'quick_reply')
+        self.assertEqual(botones[0]['parameters'][0]['payload'],
+                         'st_deriv:%d' % deriv.id)
+
     def test_turno_normal_no_encola(self):
         turno = self.Turno.create({
             'company_id': self.company.id,

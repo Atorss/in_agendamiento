@@ -77,6 +77,29 @@ class TestQueueTemplate(TestWaOutboundBase):
             ['Dra. Ana', 'Dr. Baratau', 'Juan Pérez', 'Endodoncia'])
         self.assertTrue(all(p['type'] == 'text' for p in params))
 
+    def test_botones_quick_reply_en_payload(self):
+        rec = self.Outbound.queue_template(
+            self.company, '0996706629', 'derivacion_paciente',
+            ['Juan Pérez', 'Dr. Baratau', 'Dra. Ana', 'Endodoncia'],
+            category='derivacion_paciente',
+            buttons=['dp_deriv:7', 'dp_menu:back'])
+        comps = rec.meta_payload['template']['components']
+        self.assertEqual([c['type'] for c in comps],
+                         ['body', 'button', 'button'])
+        for idx, payload in enumerate(['dp_deriv:7', 'dp_menu:back']):
+            btn = comps[1 + idx]
+            self.assertEqual(btn['sub_type'], 'quick_reply')
+            self.assertEqual(btn['index'], str(idx))
+            self.assertEqual(btn['parameters'],
+                             [{'type': 'payload', 'payload': payload}])
+
+    def test_sin_botones_solo_body(self):
+        rec = self.Outbound.queue_template(
+            self.company, '0996706629', 'aviso_agenda', ['Ana', 'x'])
+        self.assertEqual(
+            [c['type'] for c in rec.meta_payload['template']['components']],
+            ['body'])
+
     def test_registra_origen(self):
         rec = self.Outbound.queue_template(
             self.company, '0996706629', 'aviso_agenda', ['Ana', 'prueba'],

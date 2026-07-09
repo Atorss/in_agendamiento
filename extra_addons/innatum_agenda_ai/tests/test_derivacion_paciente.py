@@ -86,6 +86,31 @@ class TestPacienteElige(Fase2Case):
         self.assertEqual(len(avisos), 1)
         self.assertEqual(avisos.to_number, '593996706629')
 
+    def test_aviso_al_paciente_lleva_botones(self):
+        """La plantilla derivacion_paciente sale con los botones quick-reply
+        'Ver horarios' (dp_deriv:<id>) y 'Ahora no' (dp_menu:back)."""
+        cola = self._cola('derivacion_paciente')
+        self.assertEqual(len(cola), 1)
+        comps = cola.meta_payload['template']['components']
+        payloads = [c['parameters'][0]['payload']
+                    for c in comps if c['type'] == 'button']
+        self.assertEqual(payloads,
+                         ['dp_deriv:%d' % self.deriv.id, 'dp_menu:back'])
+
+    def test_tap_boton_plantilla_sin_sesion_previa_muestra_horarios(self):
+        """El tap del botón de la plantilla llega como primer mensaje de una
+        sesión nueva sin partner: debe autorizar por match de celular y
+        mostrar los horarios propuestos de ESA derivación."""
+        session = self.Session.create({
+            'company_id': self.company.id,
+            'wa_from': '593991112223',
+        })
+        res = self.Agent.process_message(
+            session, 'dp_deriv:%d' % self.deriv.id, wamid='W_DP_COLD')
+        rows = res['meta_payload']['interactive']['action']['sections'][0]['rows']
+        self.assertEqual({r['id'] for r in rows},
+                         {f'dp_prop:{self.p1.id}', f'dp_prop:{self.p2.id}'})
+
     def test_match_por_telefono_sin_partner_en_sesion(self):
         session = self.Session.create({
             'company_id': self.company.id,

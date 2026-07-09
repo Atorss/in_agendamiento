@@ -45,6 +45,10 @@ _RE_BOOK_FOR = re.compile(r'^book_for:(self|other)$')
 _RE_DP_DERIV = re.compile(r'^dp_deriv:(\d+)$')
 _RE_DP_PROP = re.compile(r'^dp_prop:(\d+)$')
 _RE_DP_CONFIRM = re.compile(r'^dp_confirm:(\d+)$')
+# Cualquier botón del flujo de derivación del paciente: estos handlers
+# traen su propia autorización (_dp_autorizado, match por celular), por lo
+# que pueden atenderse en frío, sin pasar por el flujo de identidad.
+_RE_DP_ANY = re.compile(r'^dp_(deriv|prop|confirm|menu):')
 
 # Regex genérico para detectar IDs de botón. Si el texto del cliente matchea,
 # saltamos los pre-filtros anti-basura (los botones son texto corto válido).
@@ -202,7 +206,7 @@ class WhatsappAgent(models.AbstractModel):
         # Si la sesión está recién creada (state=nueva), bifurcamos según si
         # ya conocemos el wa_from o no.
         if session.state == 'nueva':
-            startup = self._handle_startup(session)
+            startup = self._handle_startup(session, text)
             if startup is not None:
                 return startup
 
@@ -305,7 +309,7 @@ class WhatsappAgent(models.AbstractModel):
                 'Stale session %s reset → new session %s',
                 old_id, new_session.id,
             )
-            startup = self._handle_startup(new_session)
+            startup = self._handle_startup(new_session, text)
             if startup is None:
                 return {
                     'response_text': '',
@@ -786,13 +790,21 @@ class WhatsappAgent(models.AbstractModel):
     # Flujo determinístico de identificación + menú principal
     # -------------------------------------------------------------------------
 
-    def _handle_startup(self, session):
+    def _handle_startup(self, session, text=None):
         """Primer mensaje de la sesión (state=nueva).
 
+        - Si es un botón dp_* (tap del botón quick-reply de una plantilla
+          de derivación, p.ej. 'Ver horarios'), se atiende directo: esos
+          handlers autorizan por celular y no necesitan identidad.
         - Busca partner por wa_from (mobile OR phone) en este tenant.
         - Si encuentra → state=confirmando_identidad + pregunta "¿eres tú?".
         - Si no encuentra → state=esperando_cedula + pide cédula.
         """
+        if text and _RE_DP_ANY.match(text.strip()):
+            fast = self._handle_known_button_id(text, session)
+            if fast is not None:
+                return fast
+
         wa_from = (session.wa_from or '').strip()
         if not wa_from:
             return None

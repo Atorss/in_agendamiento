@@ -26,6 +26,26 @@ class TestStaffPropuestas(Fase2Case):
         self.assertTrue(slots, 'La lista debe traer huecos st_slot:*')
         return slots[0]['id']
 
+    def test_tap_boton_plantilla_abre_esa_derivacion(self):
+        """El payload st_deriv:<id> del botón de la plantilla abre ESA
+        derivación sin importar el contexto previo de la sesión."""
+        paciente2 = self.env['res.partner'].create({
+            'name': 'María López', 'company_id': self.company.id,
+            'mobile': '0994445556'})
+        deriv2 = self.Turno.create({
+            'es_derivacion': True,
+            'state': 'derivado',
+            'company_id': self.company.id,
+            'professional_id': self.colaboradora.id,
+            'servicio_id': self.servicio.id,
+            'partner_id': paciente2.id,
+            'derivado_por_id': self.derivador.id,
+        })
+        res = self._staff('st_deriv:%d' % deriv2.id, 'W_TS_COLD')
+        self.assertEqual(res.get('fast_path'), 'staff_slots')
+        self.assertIn('María López', res['response_text'])
+        self.assertEqual(self.session.staff_derivacion_id, deriv2)
+
     def test_lista_trae_huecos_y_formato(self):
         res = self._staff('st_addmore', 'W_TS_1')
         rows = res['meta_payload']['interactive']['action']['sections'][0]['rows']
