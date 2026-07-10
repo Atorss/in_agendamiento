@@ -9,17 +9,21 @@ El contrato de salida es idéntico al del agente de pacientes
 """
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
+
+from .staff_date_parser import EC_OFFSET, parse_fecha_escrita
 
 _logger = logging.getLogger(__name__)
 
 _RE_ST_DERIV = re.compile(r'^st_deriv:(\d+)$')
 _RE_ST_SLOT = re.compile(r'^st_slot:(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$')
+_RE_ST_DAY = re.compile(r'^st_day:(\d{4}-\d{2}-\d{2})$')
 
-SLOTS_PER_PAGE = 9   # 9 huecos + fila "Ver más" = 10 (límite Meta)
+DIAS_PER_PAGE = 9    # 9 días + 'Más días' = 10 filas (límite Meta)
+HORAS_PER_PAGE = 8   # 8 horas + 'Más horas' + 'Otros días' = 10
 DIAS_VENTANA = 21    # mismo horizonte que el planificador visual
 
 
@@ -43,15 +47,27 @@ class WhatsappStaffAgent(models.AbstractModel):
             m = _RE_ST_SLOT.match(text)
             if m:
                 return self._agregar_propuesta(session, m.group(1))
-            if text == 'st_more':
+            m = _RE_ST_DAY.match(text)
+            if m:
+                session.write({'staff_dia': m.group(1),
+                               'staff_slot_page': 0})
+                return self._mostrar_horas(session)
+            if text in ('st_dmore', 'st_more'):   # st_more: listas viejas
                 session.staff_slot_page += 1
-                return self._mostrar_slots(session)
-            if text == 'st_addmore':
-                return self._mostrar_slots(session)
+                return self._mostrar_dias(session)
+            if text == 'st_hmore':
+                session.staff_slot_page += 1
+                return self._mostrar_horas(session)
+            if text in ('st_days', 'st_addmore'):
+                session.write({'staff_dia': False, 'staff_slot_page': 0})
+                return self._mostrar_dias(session)
             if text == 'st_confirm':
                 return self._confirmar(session)
             if text == 'st_cancel':
                 return self._cancelar(session)
+            if session.state in ('staff_derivacion', 'staff_proponiendo') \
+                    and session.staff_derivacion_id:
+                return self._procesar_fecha_escrita(session, text)
             return self._menu(session)
         except Exception:  # el agente staff jamás rompe el webhook
             _logger.exception('Staff agent crashed (session=%s)', session.id)
@@ -64,7 +80,8 @@ class WhatsappStaffAgent(models.AbstractModel):
 
     def _menu(self, session):
         emp = session.employee_id
-        session.write({'staff_derivacion_id': False, 'staff_slot_page': 0})
+        session.write({'staff_derivacion_id': False, 'staff_slot_page': 0,
+                       'staff_dia': False})
         session.action_set_state('staff_menu')
         pendientes = self._derivaciones_pendientes(session)
         nombre = (emp.name or '').split(' ')[0]
@@ -100,8 +117,8 @@ class WhatsappStaffAgent(models.AbstractModel):
         ], order='create_date')
 
     def _abrir_derivacion(self, session, deriv_id):
-        """Se implementa completo en Task 3; aquí versión mínima que fija
-        el contexto y delega en _mostrar_slots (Task 3)."""
+        """Fija el contexto de la derivación y muestra la lista de días
+        con disponibilidad (_mostrar_dias)."""
         deriv = self.env['innatum.agenda.turno'].sudo().browse(
             deriv_id).exists()
         if not deriv or deriv.state != 'derivado' \
@@ -109,24 +126,44 @@ class WhatsappStaffAgent(models.AbstractModel):
             return self._text(session, 'Esa derivación ya no está pendiente. '
                                        'Escribe cualquier mensaje para ver '
                                        'tu lista actualizada.')
-        session.write({'staff_derivacion_id': deriv.id, 'staff_slot_page': 0})
+        session.write({'staff_derivacion_id': deriv.id,
+                       'staff_slot_page': 0, 'staff_dia': False})
         session.action_set_state('staff_derivacion')
-        return self._mostrar_slots(session)
+        return self._mostrar_dias(session)
 
-    def _mostrar_slots(self, session, aviso=None):
-        """Lista interactiva con los huecos libres del colaborador para la
-        derivación en curso (9 por página + 'Ver más')."""
+    def _dias_disponibles(self, deriv):
+        """[(date_local, n_huecos)] ordenado; solo días con huecos."""
+        conteo = {}
+        for dt in self._slots_libres(deriv):
+            d = (dt - EC_OFFSET).date()
+            conteo[d] = conteo.get(d, 0) + 1
+        return sorted(conteo.items())
+
+    def _fmt_dia_ec(self, d):
+        """'mié 15 jul' — reusa _fmt_dt_ec ('mié 15 jul · 10:00')."""
+        Agent = self.env['innatum.whatsapp.agent']
+        dt_utc = datetime.combine(d, time(12, 0)) + EC_OFFSET
+        return Agent._fmt_dt_ec(dt_utc).split(' · ')[0]
+
+    def _mostrar_dias(self, session, aviso=None):
+        """Nivel 1: lista de días con disponibilidad (9 + Más días)."""
         deriv = session.staff_derivacion_id
         if not deriv or deriv.state != 'derivado':
             return self._menu(session)
         session.action_set_state('staff_proponiendo')
+        if session.staff_dia:
+            # Bajamos de nivel (horas -> días): staff_slot_page es
+            # compartida por ambos niveles, así que debe resetear junto
+            # con staff_dia. Si YA estábamos en días (staff_dia vacío),
+            # se preserva la página actual (paginación de días).
+            session.write({'staff_dia': False, 'staff_slot_page': 0})
         Agent = self.env['innatum.whatsapp.agent']
-        slots = self._slots_libres(deriv)
+        dias = self._dias_disponibles(deriv)
         page = session.staff_slot_page
-        chunk = slots[page * SLOTS_PER_PAGE:(page + 1) * SLOTS_PER_PAGE]
+        chunk = dias[page * DIAS_PER_PAGE:(page + 1) * DIAS_PER_PAGE]
         if not chunk and page:
             page = session.staff_slot_page = 0
-            chunk = slots[:SLOTS_PER_PAGE]
+            chunk = dias[:DIAS_PER_PAGE]
         n_prop = len(deriv.propuesta_ids)
         if not chunk:
             if n_prop:
@@ -138,17 +175,18 @@ class WhatsappStaffAgent(models.AbstractModel):
                 '%s. Revisa tu planificación en el sistema.'
             ) % (DIAS_VENTANA, deriv.servicio_id.name or 'este servicio'))
         rows = [{
-            'id': 'st_slot:%s' % dt.strftime('%Y-%m-%d %H:%M:%S'),
-            'title': Agent._fmt_dt_ec(dt),
-            'description': '',
-        } for dt in chunk]
-        if len(slots) > (page + 1) * SLOTS_PER_PAGE:
-            rows.append({'id': 'st_more', 'title': '➡️ Ver más fechas',
+            'id': 'st_day:%s' % d.strftime('%Y-%m-%d'),
+            'title': self._fmt_dia_ec(d)[:24],
+            'description': '%d horario(s) libre(s)' % n,
+        } for d, n in chunk]
+        if len(dias) > (page + 1) * DIAS_PER_PAGE:
+            rows.append({'id': 'st_dmore', 'title': '➡️ Más días',
                          'description': ''})
         motivo = ('\nMotivo: %s' % deriv.motivo_derivacion
                   if deriv.motivo_derivacion else '')
         body = ('Derivación de *%s* (%s), derivada por %s.%s\n'
-                'Elige un horario para proponer:') % (
+                'Elige un día — o escríbeme la fecha y hora '
+                '(ej: "mañana 15:00" o "15/07 10:00").') % (
             deriv.partner_id.name or '-', deriv.servicio_id.name or '-',
             deriv.derivado_por_id.name or '-', motivo)
         if n_prop:
@@ -157,9 +195,52 @@ class WhatsappStaffAgent(models.AbstractModel):
             body = aviso + '\n' + body
         payload = Agent._payload_list(
             session.wa_from, header='📅 Proponer horarios', body=body,
+            button_text='Ver días',
+            sections=[{'title': 'Días con horarios', 'rows': rows}])
+        return self._resp(session, body, payload, 'staff_dias')
+
+    def _mostrar_horas(self, session, aviso=None):
+        """Nivel 2: horas libres del día en contexto (8 + Más horas +
+        Otros días). Sin día o día ya sin huecos → vuelve a los días."""
+        deriv = session.staff_derivacion_id
+        if not deriv or deriv.state != 'derivado':
+            return self._menu(session)
+        dia = session.staff_dia
+        if not dia:
+            return self._mostrar_dias(session, aviso=aviso)
+        session.action_set_state('staff_proponiendo')
+        Agent = self.env['innatum.whatsapp.agent']
+        slots = [dt for dt in self._slots_libres(deriv)
+                 if (dt - EC_OFFSET).date() == dia]
+        if not slots:
+            session.write({'staff_dia': False, 'staff_slot_page': 0})
+            extra = 'Ese día no tiene horarios libres. Elige otro:'
+            return self._mostrar_dias(
+                session, aviso=(aviso + '\n' + extra) if aviso else extra)
+        page = session.staff_slot_page
+        chunk = slots[page * HORAS_PER_PAGE:(page + 1) * HORAS_PER_PAGE]
+        if not chunk and page:
+            page = session.staff_slot_page = 0
+            chunk = slots[:HORAS_PER_PAGE]
+        rows = [{
+            'id': 'st_slot:%s' % dt.strftime('%Y-%m-%d %H:%M:%S'),
+            'title': Agent._fmt_dt_ec(dt).split(' · ')[1],
+            'description': '',
+        } for dt in chunk]
+        if len(slots) > (page + 1) * HORAS_PER_PAGE:
+            rows.append({'id': 'st_hmore', 'title': '➡️ Más horas',
+                         'description': ''})
+        rows.append({'id': 'st_days', 'title': '⬅️ Otros días',
+                     'description': ''})
+        body = '%s — horarios libres para %s:' % (
+            self._fmt_dia_ec(dia), deriv.partner_id.name or '-')
+        if aviso:
+            body = aviso + '\n' + body
+        payload = Agent._payload_list(
+            session.wa_from, header='📅 Elige la hora', body=body,
             button_text='Ver horarios',
-            sections=[{'title': 'Huecos libres', 'rows': rows}])
-        return self._resp(session, body, payload, 'staff_slots')
+            sections=[{'title': 'Horas libres', 'rows': rows}])
+        return self._resp(session, body, payload, 'staff_horas')
 
     def _slots_libres(self, deriv):
         """Inicios de hueco libres del colaborador (UTC naive), descontando
@@ -197,12 +278,50 @@ class WhatsappStaffAgent(models.AbstractModel):
                     'date_start': dt,
                 })
         except ValidationError:
-            session.staff_slot_page = 0
-            return self._mostrar_slots(
+            session.write({
+                'staff_dia': (dt - EC_OFFSET).date(),
+                'staff_slot_page': 0,
+            })
+            return self._mostrar_horas(
                 session, aviso='⚠️ Ese horario ya no está libre. Elige otro:')
         Agent = self.env['innatum.whatsapp.agent']
         return self._botones_propuesta(
             session, deriv, '✅ Agregado: %s.' % Agent._fmt_dt_ec(dt))
+
+    def _procesar_fecha_escrita(self, session, text):
+        """Texto libre dentro de una derivación: intenta fecha escrita.
+
+        Parsea → valida pasado/ventana → valida hueco libre (mismo
+        cálculo que las listas) → agrega por el camino del tap. Cada
+        rechazo explica el motivo y relista (días u horas del día)."""
+        deriv = session.staff_derivacion_id
+        if not deriv or deriv.state != 'derivado':
+            return self._menu(session)
+        ahora = datetime.utcnow()
+        dt = parse_fecha_escrita(text, ahora,
+                                 dia_contexto=session.staff_dia)
+        if dt is None:
+            return self._mostrar_dias(session, aviso=(
+                'No logré entender esa fecha 🤔. Escríbela como '
+                '"mañana 15:00" o "15/07 10:00" — o elige de la lista:'))
+        if dt <= ahora:
+            return self._mostrar_dias(session, aviso=(
+                '⚠️ Esa fecha ya pasó. Elige una futura:'))
+        if dt > ahora + timedelta(days=DIAS_VENTANA):
+            return self._mostrar_dias(session, aviso=(
+                '⚠️ Solo agendo dentro de los próximos %d días. '
+                'Elige una fecha más cercana:') % DIAS_VENTANA)
+        if dt in self._slots_libres(deriv):
+            session.write({'staff_dia': (dt - EC_OFFSET).date(),
+                           'staff_slot_page': 0})
+            return self._agregar_propuesta(
+                session, dt.strftime('%Y-%m-%d %H:%M:%S'))
+        # Parseó pero no es hueco libre (ocupado, fuera de jornada,
+        # bloqueado o ya propuesto): mostrar lo libre de ese día.
+        session.write({'staff_dia': (dt - EC_OFFSET).date(),
+                       'staff_slot_page': 0})
+        return self._mostrar_horas(session, aviso=(
+            '⚠️ Ese horario no está disponible. Lo libre de ese día:'))
 
     def _botones_propuesta(self, session, deriv, encabezado):
         Agent = self.env['innatum.whatsapp.agent']
@@ -225,7 +344,7 @@ class WhatsappStaffAgent(models.AbstractModel):
                 or deriv.professional_id != session.employee_id:
             return self._menu(session)
         if not deriv.propuesta_ids:
-            return self._mostrar_slots(session, aviso=(
+            return self._mostrar_dias(session, aviso=(
                 'Aún no has propuesto ningún horario. Elige al menos uno:'))
         n = len(deriv.propuesta_ids)
         try:
@@ -236,7 +355,8 @@ class WhatsappStaffAgent(models.AbstractModel):
         body = ('✅ Listo: propusiste %d horario(s) para %s. Le enviamos '
                 'las opciones al paciente para que elija; te avisaré '
                 'cuando quede agendado.') % (n, deriv.partner_id.name or '-')
-        session.write({'staff_derivacion_id': False, 'staff_slot_page': 0})
+        session.write({'staff_derivacion_id': False, 'staff_slot_page': 0,
+                       'staff_dia': False})
         session.action_set_state('staff_menu')
         return self._text(session, body)
 
@@ -245,7 +365,8 @@ class WhatsappStaffAgent(models.AbstractModel):
         if deriv:
             self.env['innatum.agenda.turno.propuesta'].sudo().search([
                 ('derivacion_id', '=', deriv.id)]).unlink()
-        session.write({'staff_derivacion_id': False, 'staff_slot_page': 0})
+        session.write({'staff_derivacion_id': False, 'staff_slot_page': 0,
+                       'staff_dia': False})
         session.action_set_state('staff_menu')
         return self._text(session, 'Descarté las propuestas. Escribe '
                                    'cualquier mensaje para ver tus '

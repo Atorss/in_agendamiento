@@ -121,6 +121,10 @@ class AiSession(models.Model):
     staff_slot_page = fields.Integer(
         string='Página de huecos (staff)', default=0,
     )
+    staff_dia = fields.Date(
+        string='Día staff en contexto',
+        help='Día local (Ecuador) cuyo listado de horas está viendo el '
+             'colaborador al proponer horarios de una derivación.')
     message_ids = fields.One2many('innatum.ai.session.message', 'session_id', string='Mensajes')
     expires_at = fields.Datetime(string='Expira')
 

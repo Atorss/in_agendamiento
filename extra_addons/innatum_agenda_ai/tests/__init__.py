@@ -11,4 +11,5 @@ from . import test_wa_outbound
 from . import test_derivacion_notificacion
 from . import test_actor_router
 from . import test_staff_agent
+from . import test_staff_date_parser
 from . import test_derivacion_paciente
