@@ -12,7 +12,7 @@
     'author': 'Innatum',
     'website': 'https://www.innatum.com',
     'category': 'Services',
-    'version': '18.0.4.47.0',
+    'version': '18.0.4.48.0',
     'depends': [
         'base',
         'mail',

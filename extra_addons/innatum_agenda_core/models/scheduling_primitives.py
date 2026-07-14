@@ -292,6 +292,9 @@ class SchedulingPrimitives(models.AbstractModel):
                          'Usa el campo `code` EXACTO devuelto por consultar_servicios.',
             }
 
+        if self._es_modo_directa(company):
+            return self._summarize_schedule_directa(servicio, company)
+
         # Bloques: días + horario únicos del régimen
         configs = Config.search([
             ('servicio_ids', 'in', servicio.id),
@@ -661,6 +664,71 @@ class SchedulingPrimitives(models.AbstractModel):
     def _operadores_de_servicio(self, servicio, company):
         return servicio.operador_ids.filtered(
             lambda e: e.company_id.id == company.id and e.active)
+
+    _DOW_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes',
+                   'Sábado', 'Domingo']
+
+    def _summarize_schedule_directa(self, servicio, company):
+        """Régimen en modo directa: los bloques salen del calendario
+        laboral de los operadores (no hay planificaciones) y las próximas
+        fechas con cupo de los huecos libres reales (14 días). Mismo shape
+        que el modo planificada — los consumidores no distinguen modos."""
+        Av = self.env['innatum.agenda.availability'].sudo()
+        ops = self._operadores_de_servicio(servicio, company)
+        dur = int(servicio.duracion or 30)
+
+        def _hora_to_str(f):
+            h = int(f)
+            m = int(round((f - h) * 60))
+            return f'{h:02d}:{m:02d}'
+
+        bloques = []
+        seen_blk = set()
+        for o in ops:
+            cal = o.resource_calendar_id or o.company_id.resource_calendar_id
+            if not cal:
+                continue
+            por_horario = {}
+            for att in cal.sudo().attendance_ids:
+                key = (att.hour_from, att.hour_to)
+                por_horario.setdefault(key, set()).add(int(att.dayofweek))
+            for (h_from, h_to), dias_idx in sorted(por_horario.items()):
+                dias = [self._DOW_LABELS[i] for i in sorted(dias_idx)]
+                horario = f'{_hora_to_str(h_from)} - {_hora_to_str(h_to)}'
+                key = (o.id, tuple(dias), horario)
+                if key in seen_blk:
+                    continue
+                seen_blk.add(key)
+                bloques.append({
+                    'professional': o.name,
+                    'dias': dias,
+                    'horario_text': horario,
+                    'duracion_turno_min': dur,
+                })
+
+        dt_from = datetime.utcnow()
+        dt_to = dt_from + timedelta(days=14)
+        fechas_cupo = {}
+        for o in ops:
+            for st in Av.free_slots(o, servicio, dt_from, dt_to,
+                                    duration_min=dur, granularity_min=dur):
+                dt_local = pytz.UTC.localize(st).astimezone(TZ)
+                fecha_iso = dt_local.strftime('%Y-%m-%d')
+                item = fechas_cupo.setdefault(fecha_iso, {
+                    'fecha_iso': fecha_iso,
+                    'fecha_label': _fecha_es(dt_local),
+                    'cupos': 0,
+                })
+                item['cupos'] += 1
+        proximas = sorted(fechas_cupo.values(),
+                          key=lambda x: x['fecha_iso'])[:5]
+
+        return {
+            'servicio': servicio.name,
+            'code': servicio.code,
+            'bloques': bloques,
+            'proximas_fechas_con_cupo': proximas,
+        }
 
     def _list_professionals_directa(self, servicio_code, company):
         Servicio = self._with_co(company).env['innatum.agenda.servicio'].sudo()

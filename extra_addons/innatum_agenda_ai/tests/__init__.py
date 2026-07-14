@@ -13,3 +13,4 @@ from . import test_actor_router
 from . import test_staff_agent
 from . import test_staff_date_parser
 from . import test_derivacion_paciente
+from . import test_regimen_directa
