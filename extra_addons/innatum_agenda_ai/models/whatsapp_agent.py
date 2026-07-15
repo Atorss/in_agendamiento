@@ -12,8 +12,10 @@ import unicodedata
 from datetime import datetime, timedelta
 from odoo import api, models
 from odoo.exceptions import UserError, ValidationError
+from odoo.tools import str2bool
 
 from .cedula_validator import validate_ec_cedula, extract_cedula
+from .wa_flow_token import get_flow_token_secret, make_flow_token
 
 _logger = logging.getLogger(__name__)
 
@@ -121,6 +123,15 @@ class WhatsappAgent(models.AbstractModel):
             )
             return self.env['innatum.whatsapp.staff.agent'] \
                 .process_staff_message(session, text)
+
+        # ====================================================================
+        # RESPUESTA DE UN FLOW (nfm_reply): la reserva ya se creó en el Data
+        # Endpoint; aquí solo confirmamos en el chat. Idempotente (wamid).
+        # ====================================================================
+        if message_type == 'nfm_reply':
+            session.append_message(role='user',
+                                   content='[flow_response]', wamid=wamid)
+            return self._handle_nfm_reply(session, text)
 
         # ====================================================================
         # CAPAS ANTI-ABUSO (cooldown → rate limit → pre-filtros). Ordenadas
@@ -1629,8 +1640,92 @@ class WhatsappAgent(models.AbstractModel):
             self._fmt_dt_ec(deriv.date_start))
         return self._text_response(session, body)
 
+    def _maybe_flow_agendamiento(self, session):
+        """Si Flows está habilitado y el tenant tiene Flow publicado y
+        claves, responde el mensaje interactivo type flow. None = usar el
+        funnel de listas (fallback permanente)."""
+        icp = self.env['ir.config_parameter'].sudo()
+        if not str2bool(icp.get_param('innatum_wa.flows_enabled')
+                        or 'False', False):
+            return None
+        company = session.company_id
+        if not company.wa_flow_id:
+            return None
+        keypair = self.env['innatum.wa.flow.keypair'].sudo().search(
+            [('company_id', '=', company.id)], limit=1)
+        if not keypair or not keypair.private_key_pem:
+            return None
+        import time as _time
+        token = make_flow_token(
+            session.id, get_flow_token_secret(self.env), _time.time())
+        body = 'Agenda tu cita aquí 👇'
+        payload = {
+            'messaging_product': 'whatsapp',
+            'to': session.wa_from,
+            'type': 'interactive',
+            'interactive': {
+                'type': 'flow',
+                'body': {'text': body},
+                'action': {
+                    'name': 'flow',
+                    'parameters': {
+                        'flow_message_version': '3',
+                        'flow_token': token,
+                        'flow_id': company.wa_flow_id,
+                        'flow_cta': 'Agendar cita',
+                        'flow_action': 'data_exchange',
+                    },
+                },
+            },
+        }
+        session.append_message(role='assistant', content=body)
+        return {
+            'response_text': body,
+            'session_state': session.state,
+            'tool_calls': [],
+            'meta_payload': payload,
+            'fast_path': 'flow_agendar',
+        }
+
+    def _handle_nfm_reply(self, session, text):
+        """Confirmación conversacional tras completar el Flow."""
+        import time as _time
+        generica = ('¡Gracias! Si necesitas algo más, escribe *hola* '
+                    'para ver el menú.')
+        try:
+            data = json.loads(text or '{}')
+        except ValueError:
+            data = None
+        if not isinstance(data, dict):
+            return self._text_response(session, generica)
+        try:
+            turno_ref = int(data.get('turno_id') or 0)
+        except (TypeError, ValueError):
+            return self._text_response(session, generica)
+        from .wa_flow_token import check_flow_token
+        sid = check_flow_token(
+            data.get('flow_token'), get_flow_token_secret(self.env),
+            _time.time())
+        turno = self.env['innatum.agenda.turno'].sudo().browse(
+            turno_ref).exists()
+        if not sid or sid != session.id or not turno \
+                or turno.company_id != session.company_id \
+                or turno.state != 'reserved' \
+                or turno.partner_id != session.partner_id:
+            return self._text_response(session, generica)
+        session.action_set_state('confirmada')
+        body = ('🎉 Tu cita quedó agendada: %s — *%s* con %s. '
+                '¡Te esperamos!') % (
+            self._fmt_dt_ec(turno.date_start),
+            turno.servicio_id.name or '-',
+            turno.professional_id.name or '-')
+        return self._text_response(session, body)
+
     def _start_agendar_flow(self, session):
         """Cliente eligió 'Agendar' → mostrar lista de servicios."""
+        flow = self._maybe_flow_agendamiento(session)
+        if flow:
+            return flow
         if session.state != 'eligiendo_servicio':
             session.action_set_state('eligiendo_servicio')
         Primitives = self.env['innatum.agenda.scheduling.primitives']

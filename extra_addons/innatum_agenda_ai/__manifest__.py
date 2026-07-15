@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Innatum Agenda — IA',
-    'version': '18.0.2.9.0',
+    'version': '18.0.3.0.0',
     'category': 'Services',
     'summary': 'IA del SaaS de agendamiento: motor multi-proveedor, agente '
                'WhatsApp, chatbot web y tools de agendamiento',
@@ -68,6 +68,7 @@
         'views/ai_menus.xml',
         'views/innatum_ai_core_menus.xml',
         'views/wa_outbound_views.xml',
+        'views/wa_flow_keypair_views.xml',
         # Wiring de grupos de apps MuK (después de los menús)
         'data/menu_groups_innatum.xml',
         'data/menu_groups_wiring.xml',

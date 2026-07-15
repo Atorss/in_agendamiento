@@ -12,6 +12,7 @@ from . import vertical_template
 from . import business_profile
 from . import business_knowledge
 from . import res_company
+from . import res_company_flow
 from . import ai_session
 from . import ai_tool_ext
 from . import ai_prompt
@@ -19,6 +20,8 @@ from . import prompt_composer
 from . import rdcm
 from . import wa_throttle
 from . import wa_outbound
+from . import wa_flow_keypair
+from . import wa_flow_agent
 from . import agenda_turno_wa
 from . import hr_employee_wa
 from . import whatsapp_agent

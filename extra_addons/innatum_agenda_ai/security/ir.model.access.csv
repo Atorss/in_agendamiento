@@ -30,3 +30,4 @@ access_innatum_business_knowledge_admin,access.innatum.business.knowledge.admin,
 access_chatbot_session_public,innatum.ai.chatbot.session.public,model_innatum_ai_chatbot_session,,1,1,1,0
 access_chatbot_session_admin,innatum.ai.chatbot.session.admin,model_innatum_ai_chatbot_session,group_ai_admin,1,1,1,1
 access_innatum_wa_outbound_system,access.innatum.wa.outbound.system,model_innatum_wa_outbound,base.group_system,1,1,1,1
+access_wa_flow_keypair_system,innatum.wa.flow.keypair system,model_innatum_wa_flow_keypair,base.group_system,1,1,1,1

@@ -14,3 +14,9 @@ from . import test_staff_agent
 from . import test_staff_date_parser
 from . import test_derivacion_paciente
 from . import test_regimen_directa
+from . import test_wa_flow_crypto
+from . import test_wa_flow_token
+from . import test_wa_flow_agent
+from . import test_wa_flow_endpoint
+from . import test_wa_flow_disparo
+from . import test_flow_json_contrato

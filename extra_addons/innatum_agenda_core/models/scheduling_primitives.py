@@ -494,26 +494,7 @@ class SchedulingPrimitives(models.AbstractModel):
             result['periodo'] = periodo_norm
 
         if fecha:
-            am = [s for s in slots if s['periodo'] == 'AM']
-            pm = [s for s in slots if s['periodo'] == 'PM']
-            night = [s for s in slots if s['periodo'] == 'NIGHT']
-            result['agrupado_por_periodo'] = {
-                'AM': am, 'PM': pm, 'NIGHT': night,
-            }
-            result['total_am'] = len(am)
-            result['total_pm'] = len(pm)
-            result['total_night'] = len(night)
-            if not periodo_norm and len(slots) > 10:
-                periodos_con_cupo = [
-                    p for p, n in (('mañana', len(am)),
-                                   ('tarde', len(pm)),
-                                   ('noche', len(night))) if n
-                ]
-                result['hint_periodo'] = (
-                    f'Hay {len(slots)} turnos ese día. Preguntale al cliente '
-                    f'en qué período prefiere: {", ".join(periodos_con_cupo)}. '
-                    f'El sistema mostrará botones automáticamente.'
-                )
+            self._agrupar_slots_por_periodo(result, slots, periodo_norm)
         else:
             result['hint'] = (
                 'Resultado SIN fecha específica. Considera llamar antes a '
@@ -660,6 +641,35 @@ class SchedulingPrimitives(models.AbstractModel):
             return {'message': 'No hay servicios disponibles actualmente.',
                     'servicios': []}
         return {'total': len(disponibles), 'especialidades': disponibles}
+
+    def _agrupar_slots_por_periodo(self, result, slots, periodo_norm):
+        """Enriquece el resultado de find_availability con la agrupación
+        por período. Es CONTRATO con el renderizador del agente WhatsApp:
+        el embudo de >10 slots lee total_am/pm/night y la lista de ≤10 lee
+        agrupado_por_periodo. Compartido por los modos planificada y
+        directa para que no vuelvan a divergir (la divergencia dejaba al
+        agente mudo al elegir fecha en directa)."""
+        am = [s for s in slots if s['periodo'] == 'AM']
+        pm = [s for s in slots if s['periodo'] == 'PM']
+        night = [s for s in slots if s['periodo'] == 'NIGHT']
+        result['agrupado_por_periodo'] = {
+            'AM': am, 'PM': pm, 'NIGHT': night,
+        }
+        result['total_am'] = len(am)
+        result['total_pm'] = len(pm)
+        result['total_night'] = len(night)
+        if not periodo_norm and len(slots) > 10:
+            periodos_con_cupo = [
+                p for p, n in (('mañana', len(am)),
+                               ('tarde', len(pm)),
+                               ('noche', len(night))) if n
+            ]
+            result['hint_periodo'] = (
+                f'Hay {len(slots)} turnos ese día. Preguntale al cliente '
+                f'en qué período prefiere: {", ".join(periodos_con_cupo)}. '
+                f'El sistema mostrará botones automáticamente.'
+            )
+        return result
 
     def _operadores_de_servicio(self, servicio, company):
         return servicio.operador_ids.filtered(
@@ -836,6 +846,8 @@ class SchedulingPrimitives(models.AbstractModel):
         }
         if periodo_norm:
             result['periodo'] = periodo_norm
+        if fecha:
+            self._agrupar_slots_por_periodo(result, slots, periodo_norm)
         return result
 
     def _reserve_directo_token(self, token, partner_id, servicio_code,
