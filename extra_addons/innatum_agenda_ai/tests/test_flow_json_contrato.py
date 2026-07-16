@@ -104,6 +104,29 @@ class TestFlowJsonContrato(TransactionCase):
                     'ruta backward: %s->%s existe con %s->%s declarada'
                     % (destino, origen, origen, destino))
 
+    def _walk(self, node):
+        """Itera todos los componentes del árbol de layout."""
+        if isinstance(node, dict):
+            yield node
+            for v in node.values():
+                yield from self._walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                yield from self._walk(v)
+
+    def test_textbody_de_error_tiene_visibilidad_condicional(self):
+        """Meta rechaza un TextBody con text vacío en runtime. Todo texto
+        ligado a error_message DEBE tener `visible` condicional para no
+        renderizarse cuando no hay error."""
+        for screen in self.flow['screens']:
+            for comp in self._walk(screen['layout']):
+                if (comp.get('type') == 'TextBody'
+                        and 'error_message' in str(comp.get('text', ''))):
+                    self.assertIn(
+                        'visible', comp,
+                        'TextBody de error sin `visible` en %s'
+                        % screen['id'])
+
     def test_max_10_ramas_por_pantalla(self):
         """Límite documentado de Meta: máx. 10 ramas por pantalla."""
         for pantalla, destinos in self.rm.items():

@@ -92,6 +92,7 @@ class InnatumWaFlowAgent(models.AbstractModel):
             'servicios': [{'id': s.code, 'title': s.name}
                           for s in servicios],
             'error_message': '',
+            'has_error': False,
         }}
 
     def _resolver_servicio(self, session, servicio_code):
@@ -139,6 +140,7 @@ class InnatumWaFlowAgent(models.AbstractModel):
             'max_date': max_d.strftime('%Y-%m-%d'),
             'unavailable_dates': unavailable,
             'error_message': aviso,
+            'has_error': bool(aviso),
         }}
 
     def _screen_hora(self, session, data, aviso=''):
@@ -169,6 +171,7 @@ class InnatumWaFlowAgent(models.AbstractModel):
                 slots[0][0]).split(' · ')[0],
             'horas': horas,
             'error_message': aviso,
+            'has_error': bool(aviso),
         }}
 
     def _resolver_operador(self, session, servicio, prof_id):
@@ -200,7 +203,8 @@ class InnatumWaFlowAgent(models.AbstractModel):
         base = {'servicio_code': data.get('servicio_code'),
                 'slot_id': data.get('slot_id'),
                 'resumen': self._resumen(session, data),
-                'error_message': ''}
+                'error_message': '',
+                'has_error': False}
         if session.partner_id:
             return {'screen': 'CONFIRMAR', 'data': base}
         return {'screen': 'IDENTIDAD', 'data': base}
@@ -217,6 +221,7 @@ class InnatumWaFlowAgent(models.AbstractModel):
                 'resumen': self._resumen(session, data),
                 'error_message': (err if not valid else
                                   'Escribe tu nombre completo.'),
+                'has_error': True,
             }}
         Partner = self.env['res.partner'].sudo()
         partner = Partner.search([
@@ -244,6 +249,7 @@ class InnatumWaFlowAgent(models.AbstractModel):
             'slot_id': data.get('slot_id'),
             'resumen': self._resumen(session, data),
             'error_message': aviso,
+            'has_error': bool(aviso),
         }}
 
     def _reservar(self, session, data, flow_token):
