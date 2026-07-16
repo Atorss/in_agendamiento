@@ -53,7 +53,15 @@ class TestWaFlowEndpoint(HttpCase):
             {'version': '3.0', 'action': 'ping'})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(meta_decrypt_response(resp.text, aes_key, iv),
-                         {'data': {'status': 'active'}})
+                         {'data': {'status': 'active'}, 'version': '3.0'})
+
+    def test_respuesta_incluye_version(self):
+        # data_api 3.0 exige `version` en el nivel superior; su ausencia
+        # rompe el Flow publicado ("Se produjo un error").
+        resp, aes_key, iv = self._post({
+            'version': '3.0', 'action': 'INIT', 'flow_token': self.token})
+        out = meta_decrypt_response(resp.text, aes_key, iv)
+        self.assertEqual(out['version'], '3.0')
 
     def test_init_devuelve_fecha(self):
         resp, aes_key, iv = self._post({

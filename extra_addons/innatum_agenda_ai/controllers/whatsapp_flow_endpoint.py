@@ -56,6 +56,10 @@ class WhatsappFlowEndpoint(http.Controller):
         except (ValueError, json.JSONDecodeError):
             return request.make_response('cannot decrypt', status=421)
 
+        # data_api 3.0 exige `version` en el nivel superior de CADA respuesta.
+        # Su ausencia la tolera el Flow en borrador pero NO el publicado
+        # ("Se produjo un error"). Eco de la versión que Meta manda.
+        version = payload.get('version') or '3.0'
         action = payload.get('action')
         if action == 'ping':
             resp = {'data': {'status': 'active'}}
@@ -74,6 +78,7 @@ class WhatsappFlowEndpoint(http.Controller):
                     session, action, payload.get('screen'),
                     payload.get('data') or {}, payload.get('flow_token'))
 
+        resp['version'] = version
         out = wa_flow_crypto.encrypt_response(resp, aes_key, iv)
         return request.make_response(
             out, headers=[('Content-Type', 'text/plain')])
