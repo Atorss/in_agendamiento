@@ -1678,6 +1678,11 @@ class WhatsappAgent(models.AbstractModel):
                 },
             },
         }
+        # Pruebas pre-publicación: `mode: draft` permite recorrer el Flow en
+        # un teléfono real antes de publicarlo. Quitar el parámetro (o
+        # ponerlo en False) para producción.
+        if str2bool(icp.get_param('innatum_wa.flow_draft') or 'False', False):
+            payload['interactive']['action']['parameters']['mode'] = 'draft'
         session.append_message(role='assistant', content=body)
         return {
             'response_text': body,

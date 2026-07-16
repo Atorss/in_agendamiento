@@ -52,6 +52,22 @@ class TestFlowDisparo(FlowDisparoCase):
                                get_flow_token_secret(self.env), time.time())
         self.assertEqual(sid, self.session.id)
 
+    def test_sin_flow_draft_no_incluye_mode(self):
+        self._habilitar_flow()
+        res = self.Agent.process_message(
+            self.session, 'menu:agendar', wamid='W_FD_ND')
+        params = res['meta_payload']['interactive']['action']['parameters']
+        self.assertNotIn('mode', params)
+
+    def test_flow_draft_incluye_mode_draft(self):
+        self._habilitar_flow()
+        self.env['ir.config_parameter'].sudo().set_param(
+            'innatum_wa.flow_draft', 'True')
+        res = self.Agent.process_message(
+            self.session, 'menu:agendar', wamid='W_FD_DR')
+        params = res['meta_payload']['interactive']['action']['parameters']
+        self.assertEqual(params['mode'], 'draft')
+
     def test_sin_flow_id_usa_listas(self):
         self._habilitar_flow()
         self.company.wa_flow_id = False

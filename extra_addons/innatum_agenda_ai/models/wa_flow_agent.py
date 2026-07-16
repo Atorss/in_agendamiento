@@ -117,7 +117,11 @@ class InnatumWaFlowAgent(models.AbstractModel):
     def _screen_fecha(self, session, servicio_code, aviso=''):
         servicio = self._resolver_servicio(session, servicio_code)
         if not servicio:
-            return self._init(session)
+            # Eco roto a mitad de flujo: NO reiniciamos a SERVICIO (la
+            # pantalla de entrada no puede tener aristas entrantes en el
+            # routing_model de Meta) — lo tratamos como fallo de integridad
+            # de sesión y cerramos con ERROR_SESION.
+            return self._error_sesion()
         hoy = (datetime.utcnow() - EC_OFFSET).date()
         max_d = hoy + timedelta(days=DIAS_VENTANA)
         con_hueco = {(dt - EC_OFFSET).date()
@@ -141,7 +145,8 @@ class InnatumWaFlowAgent(models.AbstractModel):
         servicio = self._resolver_servicio(session, data.get('servicio_code'))
         fecha = data.get('fecha') or ''
         if not servicio or not fecha:
-            return self._init(session)
+            # Eco roto a mitad de flujo → ERROR_SESION (ver _screen_fecha).
+            return self._error_sesion()
         slots = [(dt, op) for dt, op in self._slots_de(servicio)
                  if (dt - EC_OFFSET).date().strftime('%Y-%m-%d') == fecha]
         if not slots:
@@ -229,24 +234,38 @@ class InnatumWaFlowAgent(models.AbstractModel):
         session.partner_id = partner.id
         return self._post_hora(session, data)
 
+    def _confirmar_con_error(self, session, data, aviso):
+        """Refresca la MISMA pantalla CONFIRMAR con un aviso. El routing de
+        Meta solo admite rutas hacia adelante: CONFIRMAR no puede navegar de
+        vuelta a HORA/IDENTIDAD (sería backward). Ante un hueco robado el
+        usuario toca *Atrás* → HORA se recalcula por `refresh_on_back`."""
+        return {'screen': 'CONFIRMAR', 'data': {
+            'servicio_code': data.get('servicio_code'),
+            'slot_id': data.get('slot_id'),
+            'resumen': self._resumen(session, data),
+            'error_message': aviso,
+        }}
+
     def _reservar(self, session, data, flow_token):
         if not session.partner_id:
-            return self._post_hora(session, data)
+            # No debería ocurrir (CONFIRMAR se alcanza con partner ya
+            # vinculado); volver a IDENTIDAD sería una ruta backward. Cierre
+            # limpio con ERROR_SESION.
+            return self._error_sesion()
         try:
             prof_id, dt_iso = (data.get('slot_id') or '|').split('|')
             prof_id = int(prof_id)
         except ValueError:
-            return self._init(session)
+            # slot_id malformado a mitad de flujo → ERROR_SESION (la entrada
+            # SERVICIO no admite aristas entrantes en el routing de Meta).
+            return self._error_sesion()
         servicio = self._resolver_servicio(session, data.get('servicio_code'))
+        _ROBADO = ('⚠️ Ese horario ya no está disponible. Toca *Atrás* '
+                   'y elige otra hora.')
         if not self._resolver_operador(session, servicio, prof_id):
             # prof_id echoed inválido/ajeno/no-operador: mismo tratamiento
-            # que un hueco robado (no revelamos por qué, solo recalculamos
-            # las horas disponibles de ese día).
-            fecha = dt_iso.split('T')[0]
-            return self._screen_hora(session, {
-                'servicio_code': data.get('servicio_code'),
-                'fecha': fecha,
-            }, aviso='⚠️ Ese horario ya no está disponible. Elige otro:')
+            # que un hueco robado (no revelamos por qué).
+            return self._confirmar_con_error(session, data, _ROBADO)
         Primitives = self.env['innatum.agenda.scheduling.primitives']
         # `reserve_directo` atrapa la excepción de solape internamente y
         # devuelve {'error': ...} sin relanzar, pero el turno inválido que
@@ -263,12 +282,9 @@ class InnatumWaFlowAgent(models.AbstractModel):
             if res.get('error'):
                 sp.close(rollback=True)
         if res.get('error'):
-            # Hueco robado / inválido: recalcular las horas de ese día.
-            fecha = dt_iso.split('T')[0]
-            return self._screen_hora(session, {
-                'servicio_code': data.get('servicio_code'),
-                'fecha': fecha,
-            }, aviso='⚠️ Ese horario ya no está disponible. Elige otro:')
+            # Hueco robado / inválido: refrescar CONFIRMAR con aviso (no se
+            # puede navegar de vuelta a HORA por routing).
+            return self._confirmar_con_error(session, data, _ROBADO)
         turno_id = res.get('turno_id') or res.get('id') or 0
         return {'screen': 'SUCCESS', 'data': {
             'extension_message_response': {'params': {

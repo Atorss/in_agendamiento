@@ -173,7 +173,9 @@ class TestFlowReserva(FlowAgentCase):
         self.assertEqual(str(turno.date_start),
                          dt_iso.replace('T', ' '))
 
-    def test_hueco_robado_vuelve_a_hora_con_error(self):
+    def test_hueco_robado_refresca_confirmar_con_error(self):
+        # Meta solo admite rutas hacia adelante: el hueco robado NO navega de
+        # vuelta a HORA; refresca CONFIRMAR con aviso para tocar *Atrás*.
         self._hasta_confirmar()
         prof_id, dt_iso = self.slot_id.split('|')
         self.Turno.create({
@@ -185,13 +187,14 @@ class TestFlowReserva(FlowAgentCase):
             'date_start': dt_iso.replace('T', ' '),
             'state': 'reserved',
         })
+        before = self.Turno.search_count([])
         res = self.h('data_exchange', 'CONFIRMAR',
                      {'servicio_code': self.servicio.code,
                       'slot_id': self.slot_id})
-        self.assertEqual(res['screen'], 'HORA')
+        self.assertEqual(res['screen'], 'CONFIRMAR')
         self.assertTrue(res['data']['error_message'])
-        self.assertNotIn(self.slot_id,
-                         [h['id'] for h in res['data']['horas']])
+        # No se creó un turno duplicado.
+        self.assertEqual(self.Turno.search_count([]), before)
 
 
 class TestFlowOperadorTenant(FlowAgentCase):
@@ -244,8 +247,32 @@ class TestFlowOperadorTenant(FlowAgentCase):
         res = self.h('data_exchange', 'CONFIRMAR',
                      {'servicio_code': self.servicio.code,
                       'slot_id': slot_id})
-        self.assertEqual(res['screen'], 'HORA')
+        self.assertEqual(res['screen'], 'CONFIRMAR')
+        self.assertTrue(res['data']['error_message'])
         self.assertEqual(self.Turno.search_count([]), before)
+
+
+class TestFlowEcoRoto(FlowAgentCase):
+    """Eco roto a mitad de flujo NUNCA reinicia a SERVICIO (la pantalla de
+    entrada no admite aristas entrantes en el routing_model de Meta): se
+    cierra con ERROR_SESION."""
+
+    def test_fecha_con_servicio_invalido_va_a_error_no_a_servicio(self):
+        res = self.h('data_exchange', 'FECHA',
+                     {'servicio_code': 'no-existe', 'fecha': '2026-08-01'})
+        self.assertEqual(res['screen'], 'ERROR_SESION')
+
+    def test_servicio_con_code_invalido_va_a_error_no_a_servicio(self):
+        res = self.h('data_exchange', 'SERVICIO',
+                     {'servicio_code': 'no-existe'})
+        self.assertEqual(res['screen'], 'ERROR_SESION')
+
+    def test_confirmar_con_slot_malformado_va_a_error(self):
+        self.session.partner_id = self.paciente.id
+        res = self.h('data_exchange', 'CONFIRMAR',
+                     {'servicio_code': self.servicio.code,
+                      'slot_id': 'basura-sin-pipe'})
+        self.assertEqual(res['screen'], 'ERROR_SESION')
 
 
 class TestFlowBack(FlowAgentCase):

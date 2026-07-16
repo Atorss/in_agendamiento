@@ -64,6 +64,10 @@
                         <field name="supabase_tenant_id"/>
                         <field name="wa_agent_user_id"/>
                     </group>
+                    <group string="WhatsApp Flows (agendamiento)" colspan="4">
+                        <field name="wa_flow_id"/>
+                        <field name="wa_flow_slug"/>
+                    </group>
                 </group>
 
             </xpath>
@@ -107,6 +111,10 @@
                     <group string="Infraestructura del agente" colspan="2">
                         <field name="supabase_tenant_id"/>
                         <field name="wa_agent_user_id"/>
+                    </group>
+                    <group string="WhatsApp Flows (agendamiento)" colspan="4">
+                        <field name="wa_flow_id"/>
+                        <field name="wa_flow_slug"/>
                     </group>
                 </group>
 
