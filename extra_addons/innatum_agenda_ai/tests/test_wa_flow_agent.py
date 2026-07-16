@@ -25,6 +25,16 @@ class FlowAgentCase(Fase2Case):
         return self.FlowAgent.handle(
             self.session, action, screen, data or {}, 'FT-TEST')
 
+    def _pantalla_fecha(self):
+        """INIT devuelve SERVICIO (pantalla de entrada); elige el primer
+        servicio para llegar a FECHA."""
+        res = self.h('INIT')
+        if res['screen'] == 'SERVICIO':
+            code = res['data']['servicios'][0]['id']
+            res = self.h('data_exchange', 'SERVICIO',
+                         {'servicio_code': code})
+        return res
+
     def _fecha_disponible(self, res_fecha):
         """Primer día hábil NO listado en unavailable_dates."""
         from datetime import date, datetime
@@ -43,12 +53,20 @@ class TestFlowInit(FlowAgentCase):
     def test_ping(self):
         self.assertEqual(self.h('ping'), {'data': {'status': 'active'}})
 
-    def test_init_un_servicio_salta_a_fecha(self):
+    def test_init_un_servicio_muestra_entrada_servicio(self):
+        # INIT SIEMPRE devuelve la entrada SERVICIO (aunque haya 1 servicio):
+        # requisito del Flow publicado. Antes saltaba a FECHA y lo rompía.
         res = self.h('INIT')
+        self.assertEqual(res['screen'], 'SERVICIO')
+        codes = {s['id'] for s in res['data']['servicios']}
+        self.assertIn(self.servicio.code, codes)
+
+    def test_servicio_unico_avanza_a_fecha(self):
+        res = self.h('data_exchange', 'SERVICIO',
+                     {'servicio_code': self.servicio.code})
         self.assertEqual(res['screen'], 'FECHA')
         self.assertEqual(res['data']['servicio_code'], self.servicio.code)
         self.assertTrue(res['data']['min_date'])
-        # Fines de semana sin jornada → en unavailable_dates
         self.assertTrue(res['data']['unavailable_dates'])
 
     def test_init_varios_servicios_muestra_dropdown(self):
@@ -66,7 +84,7 @@ class TestFlowInit(FlowAgentCase):
 class TestFlowFechaHora(FlowAgentCase):
 
     def test_fecha_devuelve_horas_del_dia(self):
-        init = self.h('INIT')
+        init = self._pantalla_fecha()
         fecha = self._fecha_disponible(init)
         res = self.h('data_exchange', 'FECHA',
                      {'servicio_code': self.servicio.code, 'fecha': fecha})
@@ -78,7 +96,7 @@ class TestFlowFechaHora(FlowAgentCase):
         self.assertIn(':', slot['title'])
 
     def test_hora_sin_partner_pide_identidad(self):
-        init = self.h('INIT')
+        init = self._pantalla_fecha()
         fecha = self._fecha_disponible(init)
         horas = self.h('data_exchange', 'FECHA',
                        {'servicio_code': self.servicio.code, 'fecha': fecha})
@@ -89,7 +107,7 @@ class TestFlowFechaHora(FlowAgentCase):
 
     def test_hora_con_partner_va_a_confirmar(self):
         self.session.partner_id = self.paciente.id
-        init = self.h('INIT')
+        init = self._pantalla_fecha()
         fecha = self._fecha_disponible(init)
         horas = self.h('data_exchange', 'FECHA',
                        {'servicio_code': self.servicio.code, 'fecha': fecha})
@@ -105,7 +123,7 @@ class TestFlowIdentidad(FlowAgentCase):
     CEDULA_OK = '1710034065'  # cédula EC válida (módulo 10)
 
     def _hasta_identidad(self):
-        init = self.h('INIT')
+        init = self._pantalla_fecha()
         fecha = self._fecha_disponible(init)
         horas = self.h('data_exchange', 'FECHA',
                        {'servicio_code': self.servicio.code, 'fecha': fecha})
@@ -150,7 +168,7 @@ class TestFlowReserva(FlowAgentCase):
         self.session.partner_id = self.paciente.id
 
     def _hasta_confirmar(self):
-        init = self.h('INIT')
+        init = self._pantalla_fecha()
         fecha = self._fecha_disponible(init)
         horas = self.h('data_exchange', 'FECHA',
                        {'servicio_code': self.servicio.code, 'fecha': fecha})
@@ -226,7 +244,7 @@ class TestFlowOperadorTenant(FlowAgentCase):
         })
 
     def _slot_con_prof(self, prof_id):
-        init = self.h('INIT')
+        init = self._pantalla_fecha()
         fecha = self._fecha_disponible(init)
         horas = self.h('data_exchange', 'FECHA',
                        {'servicio_code': self.servicio.code, 'fecha': fecha})
@@ -280,7 +298,7 @@ class TestFlowBack(FlowAgentCase):
     `screen`), no siempre reiniciar el funnel con `_init`."""
 
     def test_back_screen_hora_devuelve_horas_frescas(self):
-        init = self.h('INIT')
+        init = self._pantalla_fecha()
         fecha = self._fecha_disponible(init)
         self.h('data_exchange', 'FECHA',
               {'servicio_code': self.servicio.code, 'fecha': fecha})

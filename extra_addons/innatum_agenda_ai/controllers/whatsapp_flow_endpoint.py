@@ -79,6 +79,10 @@ class WhatsappFlowEndpoint(http.Controller):
                     payload.get('data') or {}, payload.get('flow_token'))
 
         resp['version'] = version
+        _logger.info(
+            'Flow endpoint slug=%s action=%s screen_in=%s -> screen_out=%s '
+            'data_keys=%s', slug, action, payload.get('screen'),
+            resp.get('screen', 'ping'), list((resp.get('data') or {}).keys()))
         out = wa_flow_crypto.encrypt_response(resp, aes_key, iv)
         return request.make_response(
             out, headers=[('Content-Type', 'text/plain')])

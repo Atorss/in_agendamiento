@@ -63,10 +63,23 @@ class TestWaFlowEndpoint(HttpCase):
         out = meta_decrypt_response(resp.text, aes_key, iv)
         self.assertEqual(out['version'], '3.0')
 
-    def test_init_devuelve_fecha(self):
+    def test_init_devuelve_entrada_servicio(self):
+        # El Flow publicado exige que INIT inicialice la pantalla de ENTRADA
+        # (SERVICIO), aunque haya un solo servicio. Devolver FECHA en el INIT
+        # rompía el Flow publicado ("Se produjo un error").
         resp, aes_key, iv = self._post({
             'version': '3.0', 'action': 'INIT',
             'flow_token': self.token})
+        out = meta_decrypt_response(resp.text, aes_key, iv)
+        self.assertEqual(out['screen'], 'SERVICIO')
+        codes = {s['id'] for s in out['data']['servicios']}
+        self.assertIn(self.servicio.code, codes)
+
+    def test_servicio_data_exchange_avanza_a_fecha(self):
+        resp, aes_key, iv = self._post({
+            'version': '3.0', 'action': 'data_exchange', 'screen': 'SERVICIO',
+            'flow_token': self.token,
+            'data': {'servicio_code': self.servicio.code}})
         out = meta_decrypt_response(resp.text, aes_key, iv)
         self.assertEqual(out['screen'], 'FECHA')
         self.assertEqual(out['data']['servicio_code'], self.servicio.code)

@@ -82,12 +82,17 @@ class InnatumWaFlowAgent(models.AbstractModel):
         ]).filtered('operador_ids')
 
     def _init(self, session):
+        # INIT SIEMPRE devuelve la pantalla de ENTRADA (SERVICIO), aunque
+        # haya un solo servicio. El Flow PUBLICADO exige que el INIT
+        # inicialice la pantalla de entrada (la única sin aristas entrantes
+        # del routing_model). Saltar a FECHA con 1 servicio rompía el Flow
+        # publicado ("Se produjo un error"); en borrador Meta lo toleraba.
+        # Con un solo servicio el paciente ve una única opción y toca
+        # Continuar (SERVICIO→FECHA por data_exchange, que sí funciona).
         servicios = self._servicios_publicados(session.company_id)
         if not servicios:
             return self._error_sesion(
                 'No hay servicios disponibles. Escribe *hola* en el chat.')
-        if len(servicios) == 1:
-            return self._screen_fecha(session, servicios.code)
         return {'screen': 'SERVICIO', 'data': {
             'servicios': [{'id': s.code, 'title': s.name}
                           for s in servicios],
