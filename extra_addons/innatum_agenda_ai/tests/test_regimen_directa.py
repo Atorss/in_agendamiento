@@ -104,3 +104,47 @@ class TestFindAvailabilityDirecta(Fase2Case):
         self.assertEqual(res.get('periodo'), 'AM')
         self.assertTrue(res['slots'])
         self.assertTrue(all(s['periodo'] == 'AM' for s in res['slots']))
+
+
+class TestBookForSelfDirecta(Fase2Case):
+    """book_for:self en el funnel de listas, modo directa. El horario se
+    guarda en pending_slot_token (el turno aún no existe); el guard NO debe
+    exigir pending_turno_id — antes devolvía 'No tengo un turno pendiente' y
+    bloqueaba toda reserva directa por lista (aflora vía el puente de Web)."""
+
+    def setUp(self):
+        super().setUp()
+        self.company.agenda_modo = 'directa'
+        self.servicio.publicar_web = True
+        self.servicio.operador_ids = [(6, 0, self.colaboradora.ids)]
+        self.Agent = self.env['innatum.whatsapp.agent']
+        self.Session = self.env['innatum.ai.session']
+        self.Turno = self.env['innatum.agenda.turno']
+
+    def _slot_token(self):
+        from datetime import datetime, timedelta
+        Av = self.env['innatum.agenda.availability'].sudo()
+        dur = int(self.servicio.duracion or 30)
+        slots = Av.free_slots(
+            self.colaboradora, self.servicio, datetime.utcnow(),
+            datetime.utcnow() + timedelta(days=21),
+            duration_min=dur, granularity_min=dur)
+        self.assertTrue(slots, 'el fixture directa debe tener huecos libres')
+        return 'D|%d|%s' % (self.colaboradora.id,
+                            slots[0].strftime('%Y-%m-%dT%H:%M:%S'))
+
+    def test_book_for_self_reserva_en_directa(self):
+        token = self._slot_token()
+        session = self.Session.create({
+            'company_id': self.company.id, 'wa_from': '593990001111',
+            'partner_id': self.paciente.id,
+            'current_servicio_code': self.servicio.code,
+        })
+        # Estado tras elegir el horario (slot:TOKEN → confirmando_paciente).
+        session.action_set_state('confirmando_paciente')
+        session.pending_slot_token = token
+        before = self.Turno.search_count([])
+        res = self.Agent.process_message(
+            session, 'book_for:self', wamid='W_BFS')
+        self.assertNotIn('No tengo un turno pendiente', res['response_text'])
+        self.assertEqual(self.Turno.search_count([]), before + 1)

@@ -55,7 +55,7 @@ _RE_DP_ANY = re.compile(r'^dp_(deriv|prop|confirm|menu):')
 # Regex genérico para detectar IDs de botón. Si el texto del cliente matchea,
 # saltamos los pre-filtros anti-basura (los botones son texto corto válido).
 _RE_ANY_BUTTON_ID = re.compile(
-    r'^(?:periodo|servicio|fecha|turno|menu|ident|cancel_turno|'
+    r'^(?:periodo|servicio|fecha|turno|slot|menu|ident|cancel_turno|'
     r'confirm_cancel|info_turno|book_for|dp_deriv|dp_prop|dp_confirm|'
     r'dp_menu):'
 )
@@ -705,7 +705,11 @@ class WhatsappAgent(models.AbstractModel):
         if m:
             choice = m.group(1)
             if choice == 'self':
-                if not session.pending_turno_id:
+                # Directa guarda pending_slot_token (el turno aún no existe);
+                # planificada guarda pending_turno_id. _do_reserve_with_partner
+                # maneja ambos, así que el guard debe aceptar cualquiera.
+                if (not session.pending_turno_id
+                        and not session.pending_slot_token):
                     return self._text_response(
                         session,
                         '⚠️ No tengo un turno pendiente. Por favor selecciona '
