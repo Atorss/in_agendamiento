@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Innatum Agenda — IA',
-    'version': '18.0.3.0.9',
+    'version': '18.0.3.0.11',
     'category': 'Services',
     'summary': 'IA del SaaS de agendamiento: motor multi-proveedor, agente '
                'WhatsApp, chatbot web y tools de agendamiento',

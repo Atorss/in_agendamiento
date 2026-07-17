@@ -61,6 +61,8 @@ class WhatsappFlowEndpoint(http.Controller):
         # ("Se produjo un error"). Eco de la versión que Meta manda.
         version = payload.get('version') or '3.0'
         action = payload.get('action')
+        pdata = payload.get('data') or {}
+        session = None
         if action == 'ping':
             resp = {'data': {'status': 'active'}}
         else:
@@ -73,16 +75,30 @@ class WhatsappFlowEndpoint(http.Controller):
                 resp = {'screen': 'ERROR_SESION', 'data': {'mensaje': (
                     'Tu sesión expiró. Cierra esta ventana y escribe '
                     '*hola* para agendar.')}}
+                session = None
             else:
                 resp = env['innatum.wa.flow.agent'].handle(
                     session, action, payload.get('screen'),
-                    payload.get('data') or {}, payload.get('flow_token'))
+                    pdata, payload.get('flow_token'))
 
         resp['version'] = version
+        # DEBUG temporal (Web vs móvil): volcamos el payload ENTRANTE completo
+        # de Meta (token redactado) y la respuesta, para comparar qué manda
+        # cada cliente en cada paso. El campo `screen` es el clave: en el ciclo
+        # de WhatsApp Web llega SERVICIO cuando el usuario está en HORA.
+        dbg_in = dict(payload)
+        if dbg_in.get('flow_token'):
+            dbg_in['flow_token'] = 'ft<redacted>'
+        ua = request.httprequest.headers.get('User-Agent', '')
         _logger.info(
-            'Flow endpoint slug=%s action=%s screen_in=%s -> screen_out=%s '
-            'data_keys=%s', slug, action, payload.get('screen'),
-            resp.get('screen', 'ping'), list((resp.get('data') or {}).keys()))
+            'Flow endpoint slug=%s sid=%s partner=%s UA=%s IN=%s '
+            'OUT_screen=%s OUT_data=%s',
+            slug, session.id if session else None,
+            session.partner_id.id if session else None, ua,
+            json.dumps(dbg_in, ensure_ascii=False, default=str),
+            resp.get('screen', 'ping'),
+            json.dumps(resp.get('data') or {}, ensure_ascii=False,
+                       default=str)[:600])
         out = wa_flow_crypto.encrypt_response(resp, aes_key, iv)
         return request.make_response(
             out, headers=[('Content-Type', 'text/plain')])
