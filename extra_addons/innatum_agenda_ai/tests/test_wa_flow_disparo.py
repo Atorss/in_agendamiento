@@ -68,6 +68,14 @@ class TestFlowDisparo(FlowDisparoCase):
         params = res['meta_payload']['interactive']['action']['parameters']
         self.assertEqual(params['mode'], 'draft')
 
+    def test_web_incompat_usa_listas(self):
+        # Sesión que ya cayó en el bucle de WhatsApp Web → funnel de listas.
+        self._habilitar_flow()
+        self.session.flow_web_incompat = True
+        res = self.Agent.process_message(
+            self.session, 'menu:agendar', wamid='W_FD_WI')
+        self.assertNotEqual(res.get('fast_path'), 'flow_agendar')
+
     def test_sin_flow_id_usa_listas(self):
         self._habilitar_flow()
         self.company.wa_flow_id = False

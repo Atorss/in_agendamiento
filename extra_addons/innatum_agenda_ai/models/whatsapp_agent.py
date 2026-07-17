@@ -1648,6 +1648,9 @@ class WhatsappAgent(models.AbstractModel):
         if not str2bool(icp.get_param('innatum_wa.flows_enabled')
                         or 'False', False):
             return None
+        # Sesión que ya cayó en el bucle de WhatsApp Web: funnel de listas.
+        if session.flow_web_incompat:
+            return None
         company = session.company_id
         if not company.wa_flow_id:
             return None

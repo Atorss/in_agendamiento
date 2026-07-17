@@ -34,6 +34,12 @@ class InnatumWaFlowAgent(models.AbstractModel):
                 return self._handle_back(session, screen, data)
             if action == 'data_exchange':
                 if screen == 'SERVICIO':
+                    if session.flow_seen_hora:
+                        # Bucle de WhatsApp Web: perdió el submit de HORA y
+                        # reenvió el data_exchange de SERVICIO. Encaminamos al
+                        # funnel de listas (que sí funciona en Web).
+                        session.flow_web_incompat = True
+                        return self._web_fallback()
                     return self._screen_fecha(session,
                                               data.get('servicio_code'))
                 if screen == 'FECHA':
@@ -75,6 +81,15 @@ class InnatumWaFlowAgent(models.AbstractModel):
             'Tu sesión expiró. Cierra esta ventana y escribe *hola* '
             'para agendar.')}}
 
+    def _web_fallback(self):
+        """Pantalla puente cuando se detecta el bucle de WhatsApp Web:
+        invita a reservar por el funnel de listas (que sí funciona en Web),
+        sin obligar a cambiar de dispositivo."""
+        return {'screen': 'ERROR_SESION', 'data': {'mensaje': (
+            '📱 WhatsApp Web tuvo problemas con el formulario. Cierra esta '
+            'ventana y escribe *agendar* aquí abajo — te muestro los '
+            'horarios por mensajes para reservar tu cita.')}}
+
     def _servicios_publicados(self, company):
         return self.env['innatum.agenda.servicio'].sudo().search([
             ('company_id', '=', company.id),
@@ -89,6 +104,9 @@ class InnatumWaFlowAgent(models.AbstractModel):
         # publicado ("Se produjo un error"); en borrador Meta lo toleraba.
         # Con un solo servicio el paciente ve una única opción y toca
         # Continuar (SERVICIO→FECHA por data_exchange, que sí funciona).
+        # INIT/BACK a SERVICIO: reseteamos la marca de HORA para no confundir
+        # una vuelta atrás legítima con el bucle de WhatsApp Web.
+        session.flow_seen_hora = False
         servicios = self._servicios_publicados(session.company_id)
         if not servicios:
             return self._error_sesion(
@@ -169,6 +187,7 @@ class InnatumWaFlowAgent(models.AbstractModel):
                 'id': '%d|%s' % (op.id, dt.strftime('%Y-%m-%dT%H:%M:%S')),
                 'title': ('%s · %s' % (hora, op.name)) if multi_op else hora,
             })
+        session.flow_seen_hora = True
         return {'screen': 'HORA', 'data': {
             'servicio_code': servicio.code,
             'fecha': fecha,

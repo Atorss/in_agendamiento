@@ -84,6 +84,18 @@ class AiSession(models.Model):
              'modo de agenda directa (el turno aún no existe; se crea al '
              'reservar). Equivalente a pending_turno_id pero para Modo B.',
     )
+    # Flows-1 — puente a WhatsApp Web. El cliente de WhatsApp Web pierde el
+    # submit de la pantalla HORA del Flow (bug de Meta) y reenvía el
+    # data_exchange de SERVICIO, ciclando al calendario. Estos flags detectan
+    # ese bucle y encaminan al funnel de listas, que sí funciona en Web.
+    flow_seen_hora = fields.Boolean(
+        string='Flow: pasó por HORA', default=False, copy=False,
+        help='Marca transitoria: el Flow sirvió la pantalla HORA. Si luego '
+             'llega un data_exchange de SERVICIO, es el bucle de WhatsApp Web.')
+    flow_web_incompat = fields.Boolean(
+        string='Flow incompatible (WhatsApp Web)', default=False, copy=False,
+        help='Detectado el bucle de WhatsApp Web: el próximo "agendar" usa el '
+             'funnel de listas en vez del Flow.')
     # Estado del flujo determinístico de identificación
     pending_cedula = fields.Char(
         string='Cédula pendiente',

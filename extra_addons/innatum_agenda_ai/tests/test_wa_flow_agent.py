@@ -306,3 +306,34 @@ class TestFlowBack(FlowAgentCase):
             'servicio_code': self.servicio.code, 'fecha': fecha})
         self.assertEqual(res['screen'], 'HORA')
         self.assertTrue(res['data']['horas'])
+
+
+class TestFlowWebFallback(FlowAgentCase):
+    """WhatsApp Web pierde el submit de HORA y reenvía el data_exchange de
+    SERVICIO (bug del cliente de Meta). Detectamos el bucle y encaminamos al
+    funnel de listas, sin obligar a cambiar de dispositivo."""
+
+    def _hasta_hora(self):
+        fecha_screen = self._pantalla_fecha()
+        fecha = self._fecha_disponible(fecha_screen)
+        return self.h('data_exchange', 'FECHA',
+                      {'servicio_code': self.servicio.code, 'fecha': fecha})
+
+    def test_servicio_tras_hora_detecta_bucle_web(self):
+        hora = self._hasta_hora()
+        self.assertEqual(hora['screen'], 'HORA')
+        self.assertTrue(self.session.flow_seen_hora)
+        res = self.h('data_exchange', 'SERVICIO',
+                     {'servicio_code': self.servicio.code})
+        self.assertEqual(res['screen'], 'ERROR_SESION')
+        self.assertIn('agendar', res['data']['mensaje'])
+        self.assertTrue(self.session.flow_web_incompat)
+
+    def test_back_a_servicio_no_falsea_el_bucle(self):
+        self._hasta_hora()
+        self.h('BACK', 'SERVICIO', {})   # _init resetea flow_seen_hora
+        self.assertFalse(self.session.flow_seen_hora)
+        res = self.h('data_exchange', 'SERVICIO',
+                     {'servicio_code': self.servicio.code})
+        self.assertEqual(res['screen'], 'FECHA')
+        self.assertFalse(self.session.flow_web_incompat)
