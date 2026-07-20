@@ -25,10 +25,18 @@ from datetime import datetime, timedelta
 import pytz
 
 from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
 
 TZ = pytz.timezone('America/Guayaquil')
+
+# Máximo de horarios devueltos al agente. Se aplica SIEMPRE después de
+# filtrar por período: al revés, los slots (ordenados por hora) se agotaban
+# en la mañana y la tarde/noche parecía sin cupo.
+MAX_SLOTS = 30
+# Cota de seguridad al leer de BD antes de filtrar en Python.
+_SLOT_SEARCH_LIMIT = 400
 
 _DIAS = {
     'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
@@ -448,7 +456,8 @@ class SchedulingPrimitives(models.AbstractModel):
         if profesional_nombre:
             domain.append(('professional_id.name', 'ilike', profesional_nombre))
 
-        turnos = Turno.search(domain, order='date_start asc', limit=30)
+        turnos = Turno.search(domain, order='date_start asc',
+                              limit=_SLOT_SEARCH_LIMIT)
 
         if not turnos:
             msg = f'No hay turnos disponibles para {servicio.name}'
@@ -479,10 +488,12 @@ class SchedulingPrimitives(models.AbstractModel):
                 'servicio_codigo': servicio.code,
             })
 
-        # Filtrar por período si vino el param (embudo AM/PM/NIGHT)
+        # Filtrar por período si vino el param (embudo AM/PM/NIGHT) y recién
+        # después aplicar el tope: al revés se perdía la tarde/noche.
         periodo_norm = (periodo or '').strip().upper() if periodo else None
         if periodo_norm in ('AM', 'PM', 'NIGHT'):
             slots = [s for s in slots if s['periodo'] == periodo_norm]
+        slots = slots[:MAX_SLOTS]
 
         result = {
             'especialidad': servicio.name,
@@ -808,7 +819,10 @@ class SchedulingPrimitives(models.AbstractModel):
                                     granularity_min=gran):
                 raw.append((st, o))
         raw.sort(key=lambda x: x[0])
-        raw = raw[:30]
+        # OJO: NO truncar acá. Los slots vienen ordenados por hora, así que
+        # cortar antes de filtrar por período dejaba los primeros 30 (todos de
+        # la mañana) y el filtro 'PM'/'NIGHT' devolvía vacío teniendo cupo
+        # real. El límite se aplica abajo, sobre el conjunto YA filtrado.
 
         slots = []
         for st, o in raw:
@@ -830,6 +844,7 @@ class SchedulingPrimitives(models.AbstractModel):
         periodo_norm = (periodo or '').strip().upper() if periodo else None
         if periodo_norm in ('AM', 'PM', 'NIGHT'):
             slots = [s for s in slots if s['periodo'] == periodo_norm]
+        slots = slots[:MAX_SLOTS]   # límite DESPUÉS de filtrar por período
 
         if not slots:
             msg = f'No hay horarios disponibles para {servicio.name}'
@@ -888,18 +903,56 @@ class SchedulingPrimitives(models.AbstractModel):
         servicio = _resolve_servicio(Servicio, servicio_code, company)
         if not servicio:
             return {'error': f'Servicio no encontrado: "{servicio_code}".'}
+        # El profesional debe PRESTAR el servicio. Mismo criterio que usa
+        # _operadores_de_servicio para OFRECER los huecos: oferta y reserva
+        # tienen que validar lo mismo, si no un token viejo (o tecleado a
+        # mano) agenda con quien ya no atiende ese servicio.
+        if prof not in self._operadores_de_servicio(servicio, company):
+            return {'error': 'Ese profesional no atiende %s. Por favor elige '
+                             'un horario de la lista.' % servicio.name}
         if isinstance(date_start, str):
             try:
                 date_start = datetime.strptime(date_start, '%Y-%m-%dT%H:%M:%S')
             except ValueError:
                 return {'error': 'Fecha/hora inválida.'}
+        if date_start < datetime.utcnow():
+            return {'error': 'Ese horario ya pasó. Elige uno de los próximos '
+                             'horarios disponibles.'}
         try:
-            turno = Av.create_turno(
-                prof, servicio, date_start, partner=partner,
-                duracion_override=duracion_override,
-                motivo=(motivo or '').strip() or None, state='reserved')
+            # SAVEPOINT obligatorio: `create` inserta la fila y el constraint
+            # recién salta al flush. Si atrapamos la ValidationError sin
+            # deshacer, la fila INVÁLIDA sobrevive en la transacción → queda
+            # una doble reserva persistida y, peor, cada operación posterior
+            # vuelve a validar ese registro sucio y también falla (el paciente
+            # entra en un bucle de error del que no sale). El savepoint
+            # descarta la fila y deja la transacción limpia para reintentar.
+            with self.env.cr.savepoint():
+                turno = Av.create_turno(
+                    prof, servicio, date_start, partner=partner,
+                    duracion_override=duracion_override,
+                    motivo=(motivo or '').strip() or None, state='reserved')
+                self.env.flush_all()   # forzar constraints DENTRO del savepoint
+        except ValidationError as e:
+            # Traducir el error técnico. El mensaje del constraint nombra la
+            # referencia del turno EXISTENTE (de otro paciente): nunca debe
+            # llegar al chat.
+            crudo = str(e)
+            if 'se cruza con otro' in crudo:
+                return {'error': 'Ese horario acaba de ser reservado por otra '
+                                 'persona. Elige otro de los horarios libres.'}
+            if 'bloqueo' in crudo.lower():
+                return {'error': 'Ese horario ya no está disponible. Elige '
+                                 'otro horario.'}
+            if 'fuera del horario' in crudo:
+                return {'error': 'Ese horario está fuera de la jornada del '
+                                 'profesional. Elige uno de la lista.'}
+            _logger.warning('reserve_directo: ValidationError no mapeada: %s',
+                            crudo)
+            return {'error': 'Ese horario no está disponible. Elige otro.'}
         except Exception as e:
-            return {'error': str(e)}
+            _logger.exception('reserve_directo: fallo inesperado')
+            return {'error': 'No pude reservar ese horario. Elige otro o '
+                             'escribe *agendar* para empezar de nuevo.'}
         dt_local = pytz.UTC.localize(turno.date_start).astimezone(TZ)
         return {
             'exito': True,
