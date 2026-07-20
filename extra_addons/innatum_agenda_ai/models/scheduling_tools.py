@@ -27,6 +27,21 @@ from odoo.addons.innatum_agenda_core.models.scheduling_primitives import (
 _logger = logging.getLogger(__name__)
 
 
+def _nombre_valido(nombre):
+    """True si el texto puede ser el nombre de una persona.
+
+    Criterio deliberadamente laxo (hay nombres cortos y con caracteres poco
+    comunes) pero suficiente para frenar lo que rompe el saludo: números
+    sueltos, edades, cédulas y cadenas sin ninguna letra.
+    """
+    n = (nombre or '').strip()
+    if len(n) < 3:
+        return False
+    if not n[0].isalpha():
+        return False          # "21", "21 años", "1710034065"
+    return any(c.isalpha() for c in n)
+
+
 class SchedulingTools(models.AbstractModel):
     _name = 'flow.scheduling.tools'
     _description = 'Scheduling tools (Familia A) — agente WhatsApp'
@@ -149,6 +164,17 @@ class SchedulingTools(models.AbstractModel):
                 ('mobile', '=', phone),
                 ('company_id', 'in', [False, company.id]),
             ], limit=1)
+
+        # Un nombre debe parecer un nombre: al menos 3 caracteres y empezar
+        # por letra. La ruta determinista (`_handle_nombre_input`) ya lo
+        # exigía; ésta, la del LLM, no validaba nada y por eso llegó a
+        # producción un paciente llamado "21" (el LLM tomó un número suelto
+        # de la conversación) → el menú saludaba "¡Hola 21!".
+        if name and not _nombre_valido(name):
+            _logger.info(
+                'identificar_cliente: nombre descartado por inválido: %r',
+                name)
+            name = ''
 
         created = False
         if not partner:

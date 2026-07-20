@@ -1568,12 +1568,12 @@ class WhatsappAgent(models.AbstractModel):
         session.flow_seen_hora = False
         session.action_set_state('menu_principal')
         has_active = self._has_active_appointments(partner)
-        nombre = partner.name.split(' ')[0] if partner.name else 'cliente'
+        nombre = self._nombre_para_saludo(partner)
 
         if has_active:
             body = (
-                f'¡Hola {nombre}! 👋 Tienes citas activas con nosotros. '
-                f'¿En qué te puedo ayudar?'
+                f'¡Hola{" " + nombre if nombre else ""}! 👋 Tienes citas '
+                f'activas con nosotros. ¿En qué te puedo ayudar?'
             )
             # 4 opciones → lista interactiva (max 3 botones en Meta)
             sections = [{
@@ -1598,7 +1598,8 @@ class WhatsappAgent(models.AbstractModel):
             )
         else:
             body = (
-                f'¡Hola {nombre}! 👋 ¿En qué te puedo ayudar?'
+                f'¡Hola{" " + nombre if nombre else ""}! 👋 '
+                f'¿En qué te puedo ayudar?'
             )
             payload = self._payload_buttons(
                 session.wa_from,
@@ -2070,6 +2071,20 @@ class WhatsappAgent(models.AbstractModel):
             '_rdcm_warnings': [],
             'fast_path': 'execute_cancel',
         }
+
+    def _nombre_para_saludo(self, partner):
+        """Primer nombre para el saludo, o '' si el registro no tiene un
+        nombre usable.
+
+        Defensa para DATOS YA EXISTENTES: aunque ahora se valida al crear,
+        en producción quedaron partners con nombre basura (un paciente
+        llamado "21" hacía que el menú saludara "¡Hola 21!"). Ante un nombre
+        que no parece nombre, es mejor saludar sin él.
+        """
+        primero = (partner.name or '').strip().split(' ')[0]
+        if len(primero) < 2 or not primero[0].isalpha():
+            return ''
+        return primero
 
     def _turno_del_paciente(self, session, turno_id):
         """Turno del tenant Y del paciente de la sesión, o recordset vacío.

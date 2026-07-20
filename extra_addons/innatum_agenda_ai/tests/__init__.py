@@ -23,3 +23,4 @@ from . import test_flow_json_contrato
 from . import test_edge_agendamiento
 from . import test_operatividad_agendamiento
 from . import test_escenarios_agendamiento
+from . import test_nombre_paciente
