@@ -19,6 +19,10 @@ Estas tools son wrappers delgados que:
 import logging
 
 from odoo import api, fields, models
+# Fecha en español (Lunes 24/03/2026): `%A` crudo da 'Monday'.
+from odoo.addons.innatum_agenda_core.models.scheduling_primitives import (
+    _fecha_es,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -310,7 +314,7 @@ class SchedulingTools(models.AbstractModel):
             citas.append({
                 'turno_id': t.id,
                 'referencia': t.name,
-                'fecha': dt_local.strftime('%A %d/%m/%Y'),
+                'fecha': _fecha_es(dt_local),
                 'fecha_iso': dt_local.strftime('%Y-%m-%d'),
                 'hora': dt_local.strftime('%H:%M'),
                 'servicio': (t.servicio_id.name if t.servicio_id else '') or
@@ -360,9 +364,16 @@ class SchedulingTools(models.AbstractModel):
         if not turno.exists() or turno.company_id.id != company.id:
             return {'error': 'Turno no encontrado o no pertenece a este negocio.'}
 
-        # Validar propiedad del turno (debe ser del partner de la sesión)
-        if session and session.partner_id and turno.partner_id.id != session.partner_id.id:
-            return {'error': 'Este turno no pertenece a tu cuenta.'}
+        # Validar propiedad del turno (debe ser del partner de la sesión).
+        # SIN identidad NO se cancela: la ausencia de partner_id es motivo de
+        # denegación, nunca de permiso (antes se saltaba la comprobación
+        # entera y una sesión sin identificar podía cancelar citas ajenas).
+        if session:
+            if not session.partner_id:
+                return {'error': 'Necesito identificarte antes de cancelar '
+                                 'una cita.'}
+            if turno.partner_id.id != session.partner_id.id:
+                return {'error': 'Este turno no pertenece a tu cuenta.'}
 
         if turno.state not in ('reserved', 'confirmed'):
             return {
@@ -418,7 +429,7 @@ class SchedulingTools(models.AbstractModel):
             'ok': True,
             'turno_id': turno.id,
             'referencia': turno.name,
-            'fecha': dt_local.strftime('%A %d/%m/%Y'),
+            'fecha': _fecha_es(dt_local),
             'hora': dt_local.strftime('%H:%M'),
             'mensaje': '¡Cita cancelada exitosamente!',
         }

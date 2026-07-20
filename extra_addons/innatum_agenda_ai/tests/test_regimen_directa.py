@@ -148,3 +148,17 @@ class TestBookForSelfDirecta(Fase2Case):
             session, 'book_for:self', wamid='W_BFS')
         self.assertNotIn('No tengo un turno pendiente', res['response_text'])
         self.assertEqual(self.Turno.search_count([]), before + 1)
+
+    def test_saludo_desatasca_estado_intermedio(self):
+        # Sesión atascada en confirmando_paciente (ej. tras un error) + marcada
+        # Web-incompatible: un "hola" debe re-mostrar el menú y limpiar el flag.
+        session = self.Session.create({
+            'company_id': self.company.id, 'wa_from': '593990002222',
+            'partner_id': self.paciente.id,
+        })
+        session.action_set_state('confirmando_paciente')
+        session.flow_web_incompat = True
+        res = self.Agent.process_message(session, 'hola', wamid='W_HOLA')
+        self.assertEqual(session.state, 'menu_principal')
+        self.assertFalse(session.flow_web_incompat)
+        self.assertNotEqual(res.get('fast_path'), 'dup_wamid')

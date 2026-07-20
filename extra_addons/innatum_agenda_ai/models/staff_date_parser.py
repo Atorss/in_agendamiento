@@ -52,6 +52,48 @@ def _extraer_hora(text):
     return None
 
 
+def parse_dia_suelto(text, ahora_utc):
+    """Parsea un DÍA sin hora: 'mañana', 'el viernes', '15/07', 'hoy'.
+
+    Es la variante para PACIENTES: en el funnel el paciente elige el día y
+    recién después el horario (la hora la dan los botones), así que exigir
+    hora —como hace `parse_fecha_escrita` para el staff— perdía respuestas
+    perfectamente claras. Devuelve un `date` local o None.
+    """
+    text = _normalizar(text)
+    if not text:
+        return None
+    hoy_local = (ahora_utc - EC_OFFSET).date()
+
+    m = _RE_FECHA_NUM.search(text)
+    if m:
+        dd, mes, yy = int(m.group(1)), int(m.group(2)), m.group(3)
+        if not (1 <= dd <= 31 and 1 <= mes <= 12):
+            return None
+        year = int(yy) + (2000 if yy and len(yy) == 2 else 0) if yy \
+            else hoy_local.year
+        try:
+            dia = hoy_local.replace(year=year, month=mes, day=dd)
+        except ValueError:
+            return None
+        if not yy and dia < hoy_local:
+            dia = dia.replace(year=year + 1)
+        return dia
+    if _RE_PASADO.search(text):
+        return hoy_local + timedelta(days=2)
+    if _RE_MANANA.search(text):
+        return hoy_local + timedelta(days=1)
+    if _RE_HOY.search(text):
+        return hoy_local
+    mdow = _RE_DOW.search(text)
+    if mdow:
+        # "el viernes" siendo viernes = el viernes que viene (hoy ya se
+        # ofrece por defecto y pedirlo por nombre suele significar el próximo).
+        delta = (_DOW[mdow.group(1)] - hoy_local.weekday()) % 7 or 7
+        return hoy_local + timedelta(days=delta)
+    return None
+
+
 def parse_fecha_escrita(text, ahora_utc, dia_contexto=None):
     """Parsea 'mañana 15:00', 'lunes 3pm', '15/07 10:00', '9:30' (esta
     última solo con `dia_contexto`). Devuelve datetime UTC naive o None."""

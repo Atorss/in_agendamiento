@@ -15,6 +15,13 @@ from odoo.exceptions import UserError, ValidationError
 from odoo.tools import str2bool
 
 from .cedula_validator import validate_ec_cedula, extract_cedula
+from .staff_date_parser import parse_dia_suelto
+# Formateo de fecha en español (Lunes 24/03/2026). Se reutiliza el helper
+# del core en vez de un tercer _DIAS: `%A` crudo imprime 'Monday' con el
+# locale C del contenedor y eso llegaba al chat del paciente.
+from odoo.addons.innatum_agenda_core.models.scheduling_primitives import (
+    _fecha_es,
+)
 from .wa_flow_token import get_flow_token_secret, make_flow_token
 
 _logger = logging.getLogger(__name__)
@@ -41,6 +48,8 @@ _RE_SLOT = re.compile(r'^slot:(D\|.+)$')
 _RE_MENU = re.compile(r'^menu:(.+)$')
 _RE_IDENT = re.compile(r'^ident:(yes|no)(?::(\d+))?$')
 _RE_CANCEL = re.compile(r'^cancel_turno:(\d+)$')
+_RE_REAGENDAR = re.compile(r'^reagendar_turno:(\d+)$')
+_RE_CONFIRM_REAGENDAR = re.compile(r'^confirm_reagendar:(\d+)$')
 _RE_CONFIRM_CANCEL = re.compile(r'^confirm_cancel:(\d+)$')
 _RE_INFO_TURNO = re.compile(r'^info_turno:(\d+)$')
 _RE_BOOK_FOR = re.compile(r'^book_for:(self|other)$')
@@ -56,8 +65,8 @@ _RE_DP_ANY = re.compile(r'^dp_(deriv|prop|confirm|menu):')
 # saltamos los pre-filtros anti-basura (los botones son texto corto válido).
 _RE_ANY_BUTTON_ID = re.compile(
     r'^(?:periodo|servicio|fecha|turno|slot|menu|ident|cancel_turno|'
-    r'confirm_cancel|info_turno|book_for|dp_deriv|dp_prop|dp_confirm|'
-    r'dp_menu):'
+    r'confirm_cancel|info_turno|book_for|reagendar_turno|confirm_reagendar|'
+    r'dp_deriv|dp_prop|dp_confirm|dp_menu):'
 )
 # Detección de "solo emojis / símbolos sin sustancia" para pre-filtro.
 # Una palabra "sustantiva" requiere al menos una letra o dígito.
@@ -246,23 +255,21 @@ class WhatsappAgent(models.AbstractModel):
             session.action_set_state('esperando_cedula')
             return self._ask_for_cedula(session, first_time=True)
 
-        # SALUDO en estados post-identificación → re-mostrar menú principal.
-        # Si el cliente está en menu_principal/confirmada/pendiente_pago y
-        # vuelve a saludar, no le respondemos con LLM genérico ("¡Hola de
-        # nuevo!"); le repetimos el menú con sus citas activas.
-        if session.state in ('menu_principal', 'eligiendo_servicio',
-                             'confirmada', 'pendiente_pago'):
-            if self._is_greeting(text):
-                partner = session.partner_id
-                if partner:
-                    return self._show_main_menu(session, partner)
+        # SALUDO → re-mostrar el menú principal desde CUALQUIER estado (los
+        # estados de captura esperando_*/confirmando_identidad ya retornaron
+        # arriba). Escape robusto: una sesión atascada en un estado intermedio
+        # (ej. confirmando_paciente tras un error) NUNCA debe responder por LLM
+        # a un "hola"; siempre puede volver al menú con sus citas activas.
+        if self._is_greeting(text) and session.partner_id:
+            return self._show_main_menu(session, session.partner_id)
 
-        # KEYWORDS en menu_principal: si el cliente escribe texto libre que
-        # contiene una palabra clave del menú, lo enrutamos al handler
-        # determinístico (evita que el LLM invente servicios ante ruido como
-        # "Polonio"). También aplica mientras elige servicio, para que pueda
-        # escaparse a otra acción sin quedar atrapado.
-        if session.state in ('menu_principal', 'eligiendo_servicio'):
+        # KEYWORDS del menú: enrutan a los handlers deterministas no solo en
+        # los estados de navegación, sino también en estados intermedios/
+        # terminales, para que "agendar"/"mis citas" SIEMPRE re-enganchen el
+        # funnel (evita que una sesión a mitad de otro flujo caiga al LLM).
+        if session.state in ('menu_principal', 'eligiendo_servicio',
+                             'confirmando_paciente', 'confirmada',
+                             'pendiente_pago'):
             kw = self._match_menu_keyword(text)
             if kw == 'agendar':
                 return self._start_agendar_flow(session)
@@ -289,6 +296,41 @@ class WhatsappAgent(models.AbstractModel):
                 return self._handle_known_button_id(
                     'servicio:%s' % servicio_code, session,
                 )
+
+        # RESPUESTA EN PALABRAS A "¿PARA TI O PARA OTRA PERSONA?". El paciente
+        # contestó exactamente lo que se le preguntó, pero escribiendo en vez
+        # de tocar el botón. Enrutar como el botón equivalente (antes esto
+        # caía al LLM, que no tiene el pending_slot_token de la sesión).
+        if session.state == 'confirmando_paciente':
+            t_norm = _norm_text(text)
+            if t_norm and len(t_norm) <= 40:
+                if any(k in t_norm for k in (
+                        'otra persona', 'para otro', 'para otra', 'un familiar',
+                        'mi hijo', 'mi hija', 'mi mama', 'mi papa',
+                        'mi esposa', 'mi esposo')):
+                    return self._handle_known_button_id(
+                        'book_for:other', session)
+                if any(k in t_norm for k in (
+                        'para mi', 'es para mi', 'si para mi', 'mia', 'mio',
+                        'yo mismo', 'soy yo')) or t_norm in ('si', 'sí',
+                                                             'claro', 'dale',
+                                                             'correcto'):
+                    return self._handle_known_button_id(
+                        'book_for:self', session)
+
+        # TEXTO LIBRE QUE NOMBRA UN DÍA ("mañana", "el viernes", "15/07") →
+        # enrutar como el botón `fecha:YYYY-MM-DD`. Solo con servicio ya
+        # elegido: sin él la fecha no significa nada todavía.
+        if (session.current_servicio_code
+                and session.state in ('menu_principal', 'eligiendo_servicio')):
+            fecha_iso = self._match_fecha_libre(text)
+            if fecha_iso:
+                _logger.info(
+                    'Texto→fecha: session=%s fecha=%s (de "%s")',
+                    session.id, fecha_iso, (text or '')[:40],
+                )
+                return self._handle_known_button_id(
+                    'fecha:%s' % fecha_iso, session)
 
         # En estados post-reserva (confirmada / pendiente_pago) atendemos
         # también keywords del menú: el cliente puede querer info/cancelar/
@@ -632,9 +674,14 @@ class WhatsappAgent(models.AbstractModel):
             fecha = m.group(1)
             code = session.current_servicio_code
             if not code:
-                # No tenemos contexto del servicio: caer al LLM para que
-                # pregunte al cliente qué servicio quiere.
-                return None
+                # Sin contexto de servicio la fecha no significa nada. Antes
+                # se caía al LLM (que tampoco tiene el estado); ahora se pide
+                # el servicio de forma determinista, conservando la intención.
+                _logger.info(
+                    'Fast-path fecha sin servicio: session=%s → pido servicio',
+                    session.id,
+                )
+                return self._start_agendar_flow(session)
             _logger.info(
                 'Fast-path fecha: session=%s code=%s fecha=%s',
                 session.id, code, fecha,
@@ -677,8 +724,16 @@ class WhatsappAgent(models.AbstractModel):
         if m:
             turno_id = int(m.group(1))
             turno = self.env['innatum.agenda.turno'].sudo().browse(turno_id)
-            if not turno.exists():
-                return None
+            # Validar tenant y disponibilidad ANTES de responder: el mensaje
+            # revela servicio y fecha del turno, así que la comprobación no
+            # puede quedar solo en reserve_existing (allí ya se envió el dato).
+            if (not turno.exists()
+                    or turno.company_id.id != session.company_id.id
+                    or turno.state != 'available'):
+                return self._text_response(
+                    session,
+                    '⚠️ Ese horario ya no está disponible. Escribe *agendar* '
+                    'para ver los horarios libres.')
             _logger.info(
                 'Fast-path turno: session=%s turno_id=%s partner_id=%s',
                 session.id, turno_id, session.partner_id.id or None,
@@ -692,6 +747,20 @@ class WhatsappAgent(models.AbstractModel):
         m = _RE_SLOT.match(text)
         if m:
             token = m.group(1)
+            # Validar AQUÍ, no al reservar: antes se aceptaba cualquier token
+            # (corrupto, vencido, de otro profesional) y el paciente avanzaba
+            # dos pantallas para fallar después. El fallo diferido es peor que
+            # el inmediato: pierde el contexto de qué eligió.
+            err = self._validar_slot_token(session, token)
+            if err:
+                _logger.info(
+                    'Fast-path slot RECHAZADO: session=%s token=%s (%s)',
+                    session.id, token, err,
+                )
+                return self._text_response(
+                    session,
+                    '⚠️ %s\n\nEscribe *agendar* para ver los horarios '
+                    'disponibles.' % err)
             _logger.info(
                 'Fast-path slot (directo): session=%s token=%s',
                 session.id, token,
@@ -710,6 +779,14 @@ class WhatsappAgent(models.AbstractModel):
                 # maneja ambos, así que el guard debe aceptar cualquiera.
                 if (not session.pending_turno_id
                         and not session.pending_slot_token):
+                    # Doble tap del botón (WhatsApp tarda en confirmar): la
+                    # reserva YA se hizo y se limpió el pendiente. Decirle
+                    # "no tengo un turno pendiente" al paciente que acaba de
+                    # reservar lo hace dudar de su cita y llamar al consultorio.
+                    if session.turno_id and session.state in (
+                            'confirmada', 'pendiente_pago'):
+                        return self._show_turno_info(
+                            session, session.turno_id.id)
                     return self._text_response(
                         session,
                         '⚠️ No tengo un turno pendiente. Por favor selecciona '
@@ -798,6 +875,16 @@ class WhatsappAgent(models.AbstractModel):
         if m:
             turno_id = int(m.group(1))
             return self._execute_cancel(session, turno_id)
+
+        # === reagendar_turno:N → confirmar antes de mover la cita ===
+        m = _RE_REAGENDAR.match(text)
+        if m:
+            return self._ask_reagendar_confirmation(session, int(m.group(1)))
+
+        # === confirm_reagendar:N → cancelar la actual y reabrir el funnel ===
+        m = _RE_CONFIRM_REAGENDAR.match(text)
+        if m:
+            return self._execute_reagendar(session, int(m.group(1)))
 
         return None
 
@@ -1122,14 +1209,36 @@ class WhatsappAgent(models.AbstractModel):
         if any(k in t for k in ('cancelar', 'anular', 'quitar cita',
                                  'borrar cita')):
             return 'cancelar'
+        # 'cita'/'turno' sueltos con un verbo de intención: cubre las formas
+        # naturales ("necesito un turno", "quiero sacar una cita porfa") que
+        # antes fallaban por una palabra intermedia y se perdían en el LLM.
         if any(k in t for k in ('agendar', 'reservar', 'nueva cita',
                                  'pedir cita', 'sacar cita', 'sacar turno',
                                  'nuevo turno')):
+            return 'agendar'
+        if (any(v in t for v in ('quiero', 'necesito', 'quisiera', 'me das',
+                                 'dame', 'puedo', 'agenda', 'saco', 'sacar',
+                                 'pedir', 'reservo'))
+                and any(s in t for s in ('cita', 'turno', 'hora'))):
             return 'agendar'
         if any(k in t for k in ('info', 'mis citas', 'mi cita',
                                  'mis turnos', 'mi turno', 'consultar')):
             return 'info'
         return None
+
+    def _match_fecha_libre(self, text):
+        """Texto libre → 'YYYY-MM-DD' si nombra un día concreto, o None.
+
+        Deja que el paciente escriba 'mañana' o 'el viernes' en vez de tocar
+        el botón de fecha: es la respuesta natural a '¿qué día prefieres?'.
+        """
+        if not text or len(text.strip()) > 40:
+            return None
+        try:
+            dia = parse_dia_suelto(text, datetime.utcnow())
+        except Exception:
+            return None
+        return dia.strftime('%Y-%m-%d') if dia else None
 
     def _match_servicio(self, text, session):
         """Resuelve texto libre al código de un servicio del tenant.
@@ -1171,6 +1280,35 @@ class WhatsappAgent(models.AbstractModel):
         if isinstance(tid, str) and tid.startswith('D|'):
             return 'slot:%s' % tid
         return 'turno:%s' % tid
+
+    def _validar_slot_token(self, session, token):
+        """Valida un token 'D|prof|iso' en el momento en que llega.
+
+        Devuelve None si es válido, o el motivo (texto para el paciente) si
+        no lo es. Comprueba formato, tenant, que el profesional preste el
+        servicio en curso, y que el horario sea futuro.
+        """
+        try:
+            _, prof_raw, iso = token.split('|', 2)
+            prof_id = int(prof_raw)
+            dt = datetime.strptime(iso, '%Y-%m-%dT%H:%M:%S')
+        except (ValueError, AttributeError):
+            return 'Ese horario no es válido.'
+        if dt < datetime.utcnow():
+            return 'Ese horario ya pasó.'
+        prof = self.env['hr.employee'].sudo().browse(prof_id).exists()
+        if not prof or prof.company_id.id != session.company_id.id:
+            return 'Ese horario ya no está disponible.'
+        code = session.current_servicio_code
+        if code:
+            servicio = self.env['innatum.agenda.servicio'].sudo().search([
+                ('code', '=', code),
+                ('company_id', '=', session.company_id.id),
+            ], limit=1)
+            if servicio and prof not in servicio.operador_ids:
+                return ('%s ya no atiende %s.'
+                        % (prof.name, servicio.name))
+        return None
 
     def _ask_who_is_patient(self, session, turno, slot_token=None):
         """Pregunta si la reserva es para el cliente o para otra persona.
@@ -1421,6 +1559,13 @@ class WhatsappAgent(models.AbstractModel):
             deriv_offer = self._maybe_offer_derivacion(session, partner)
             if deriv_offer:
                 return deriv_offer
+        # Menú fresco: limpiamos el contexto de reserva a medias y re-habilitamos
+        # el Flow (si el usuario había caído en el bucle de WhatsApp Web y ahora
+        # vuelve al menú, en móvil debe volver a recibir el Flow nativo).
+        session.pending_slot_token = False
+        session.pending_turno_id = False
+        session.flow_web_incompat = False
+        session.flow_seen_hora = False
         session.action_set_state('menu_principal')
         has_active = self._has_active_appointments(partner)
         nombre = partner.name.split(' ')[0] if partner.name else 'cliente'
@@ -1830,7 +1975,7 @@ class WhatsappAgent(models.AbstractModel):
             f"Ref: {turno.name}\n"
             f"Servicio: {(turno.servicio_id.name if turno.servicio_id else '-')}\n"
             f"Profesional: {turno.professional_id.name}\n"
-            f"Fecha: {dt_local.strftime('%A %d/%m/%Y')}\n"
+            f"Fecha: {_fecha_es(dt_local)}\n"
             f"Hora: {dt_local.strftime('%H:%M')}\n"
             f"Estado: {state_label}"
         )
@@ -1864,7 +2009,7 @@ class WhatsappAgent(models.AbstractModel):
         body = (
             f"¿Confirmas que deseas cancelar tu cita?\n\n"
             f"Ref: {turno.name}\n"
-            f"Fecha: {dt_local.strftime('%A %d/%m/%Y')} a las {dt_local.strftime('%H:%M')}\n"
+            f"Fecha: {_fecha_es(dt_local)} a las {dt_local.strftime('%H:%M')}\n"
             f"Servicio: {(turno.servicio_id.name if turno.servicio_id else '-')}"
         )
         payload = self._payload_buttons(
@@ -1888,6 +2033,16 @@ class WhatsappAgent(models.AbstractModel):
 
     def _execute_cancel(self, session, turno_id):
         """Cliente confirmó cancelación → ejecutar cancelar_turno."""
+        # Mismo guard que _show_turno_info/_ask_cancel_confirmation: la
+        # autorización se valida en CADA handler que muta o revela estado,
+        # no se hereda del paso anterior (el fast-path de botones es
+        # alcanzable desde cualquier estado, incluso sin identificar).
+        turno = self.env['innatum.agenda.turno'].sudo().browse(turno_id)
+        if (not turno.exists()
+                or not session.partner_id
+                or turno.company_id.id != session.company_id.id
+                or turno.partner_id.id != session.partner_id.id):
+            return self._text_response(session, '❌ No encontré esa cita.')
         Tools = self.env['flow.scheduling.tools']
         result = Tools.cancelar_turno(
             {'turno_id': turno_id, 'motivo': 'Cancelado por cliente vía WhatsApp'},
@@ -1915,6 +2070,81 @@ class WhatsappAgent(models.AbstractModel):
             '_rdcm_warnings': [],
             'fast_path': 'execute_cancel',
         }
+
+    def _turno_del_paciente(self, session, turno_id):
+        """Turno del tenant Y del paciente de la sesión, o recordset vacío.
+        Guard compartido por todos los handlers que tocan una cita concreta."""
+        turno = self.env['innatum.agenda.turno'].sudo().browse(turno_id)
+        if (not turno.exists()
+                or not session.partner_id
+                or turno.company_id.id != session.company_id.id
+                or turno.partner_id.id != session.partner_id.id):
+            return self.env['innatum.agenda.turno'].sudo().browse()
+        return turno
+
+    def _ask_reagendar_confirmation(self, session, turno_id):
+        """Pide confirmación antes de reagendar.
+
+        Reagendar = cancelar la cita actual + volver a elegir horario del
+        MISMO servicio. Se avisa explícitamente para que el paciente no
+        pierda su cupo sin saberlo.
+        """
+        turno = self._turno_del_paciente(session, turno_id)
+        if not turno:
+            return self._text_response(session, '❌ No encontré esa cita.')
+        import pytz
+        dt_local = pytz.UTC.localize(turno.date_start).astimezone(
+            pytz.timezone('America/Guayaquil'))
+        servicio = turno.servicio_id.name if turno.servicio_id else '-'
+        body = (
+            f"Para reagendar libero tu horario actual y elegimos uno nuevo.\n\n"
+            f"Cita actual: {servicio}\n"
+            f"{_fecha_es(dt_local)} a las "
+            f"{dt_local.strftime('%H:%M')}\n\n"
+            f"¿Continúo?"
+        )
+        payload = self._payload_buttons(
+            session.wa_from,
+            header='📅 Reagendar cita',
+            body=body,
+            buttons=[
+                {'id': f'confirm_reagendar:{turno.id}',
+                 'title': '✅ Sí, reagendar'},
+                {'id': f'info_turno:{turno.id}', 'title': '🔙 No, regresar'},
+            ],
+        )
+        session.append_message(role='assistant', content=body)
+        return {
+            'response_text': body,
+            'session_state': session.state,
+            'tool_calls': [],
+            'meta_payload': payload,
+            '_rdcm_warnings': [],
+            'fast_path': 'ask_reagendar',
+        }
+
+    def _execute_reagendar(self, session, turno_id):
+        """Cancela la cita actual y reabre el funnel en el mismo servicio."""
+        turno = self._turno_del_paciente(session, turno_id)
+        if not turno:
+            return self._text_response(session, '❌ No encontré esa cita.')
+        servicio_code = turno.servicio_id.code if turno.servicio_id else False
+        result = self.env['flow.scheduling.tools'].cancelar_turno(
+            {'turno_id': turno_id,
+             'motivo': 'Reagendado por el paciente vía WhatsApp'},
+            session=session,
+        )
+        if result.get('error'):
+            return self._text_response(session, f'⚠️ {result["error"]}')
+        session.pending_turno_id = False
+        session.pending_slot_token = False
+        # Conservar el servicio: el paciente quiere el MISMO servicio en otro
+        # horario, así que se salta el paso de elegir servicio otra vez.
+        if servicio_code:
+            session.current_servicio_code = servicio_code
+            return self._handle_known_button_id(
+                'servicio:%s' % servicio_code, session)
+        return self._start_agendar_flow(session)
 
     def _ask_for_cedula(self, session, first_time=False):
         """Pide la cédula al cliente nuevo."""
@@ -1962,6 +2192,39 @@ class WhatsappAgent(models.AbstractModel):
             meta_payload.get('interactive', {}).get('body', {}).get('text', '')
             if meta_payload else ''
         )
+        if not body_short:
+            # No se pudo armar el interactive (resultado con `error`, o lista
+            # de slots vacía). ANTES se devolvía texto vacío y el paciente no
+            # recibía NADA. La primitiva ya trae un mensaje bueno y accionable
+            # ('No hay horarios para X el D. Probá otra fecha.'): se usa ese, y
+            # se adjuntan botones de escape para que siempre haya próximo paso.
+            res = tool_summary.get('result') or {}
+            # `message` es texto pensado para el cliente. `error`, en cambio,
+            # es texto para el LLM/dev ("Usa el campo `code` EXACTO...") y NO
+            # debe llegar al chat: se registra y se responde algo humano.
+            body_short = res.get('message')
+            if not body_short:
+                if res.get('error'):
+                    _logger.info(
+                        'Fast-path %s error interno (no se envía al cliente): '
+                        '%s', label, res['error'],
+                    )
+                body_short = (
+                    'No encontré horarios para esa opción. Elige otra fecha o '
+                    'escribe *agendar* para empezar de nuevo.')
+            meta_payload = self._payload_buttons(
+                session.wa_from,
+                header='📅 Sin disponibilidad',
+                body=body_short,
+                buttons=[
+                    {'id': 'menu:otra_fecha', 'title': '📅 Otra fecha'},
+                    {'id': 'menu:agendar', 'title': '🏷️ Otro servicio'},
+                ],
+            )
+            _logger.info(
+                'Fast-path %s sin interactive: se responde con fallback '
+                '(session=%s): %s', label, session.id, body_short[:80],
+            )
         session.append_message(
             role='assistant', content=body_short or '(interactive)',
         )

@@ -20,3 +20,6 @@ from . import test_wa_flow_agent
 from . import test_wa_flow_endpoint
 from . import test_wa_flow_disparo
 from . import test_flow_json_contrato
+from . import test_edge_agendamiento
+from . import test_operatividad_agendamiento
+from . import test_escenarios_agendamiento
