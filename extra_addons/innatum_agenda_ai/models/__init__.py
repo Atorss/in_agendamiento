@@ -22,6 +22,7 @@ from . import wa_throttle
 from . import wa_outbound
 from . import wa_flow_keypair
 from . import wa_flow_agent
+from . import wa_intent_classifier
 from . import agenda_turno_wa
 from . import hr_employee_wa
 from . import whatsapp_agent

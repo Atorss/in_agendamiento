@@ -16,6 +16,7 @@ from odoo.tools import str2bool
 
 from .cedula_validator import validate_ec_cedula, extract_cedula
 from .staff_date_parser import parse_dia_suelto
+from .wa_intent_classifier import INTENT_TO_BUTTON
 # Formateo de fecha en español (Lunes 24/03/2026). Se reutiliza el helper
 # del core en vez de un tercer _DIAS: `%A` crudo imprime 'Monday' con el
 # locale C del contenedor y eso llegaba al chat del paciente.
@@ -91,8 +92,21 @@ class WhatsappAgent(models.AbstractModel):
           dict {'response_text': str, 'session_state': str, 'tool_calls': list?, '_rdcm_warnings': list?}
         """
         if not text and not media_id:
+            # Un entrante SIN contenido casi siempre significa que el Gateway
+            # no supo traducir el tipo de mensaje. Caso real: un Flow
+            # completado llega como message_type='interactive' con texto vacío
+            # cuando la rama `nfm_reply` del nodo Extract Inbound no está
+            # desplegada → el turno se crea pero el paciente nunca recibe la
+            # confirmación. Se descarta igual (no hay nada que procesar), pero
+            # se DEJA RASTRO: antes era un silencio total, indiagnosticable.
+            _logger.warning(
+                'Entrante vacío descartado: message_type=%s wa_from=%s '
+                'wamid=%s. Si venía de un Flow completado, revisar la rama '
+                'nfm_reply del nodo Extract Inbound del Gateway.',
+                message_type, session.wa_from, wamid,
+            )
             return {'response_text': '', 'session_state': session.state,
-                    'skip_send': True}
+                    'skip_send': True, 'skipped_reason': 'entrante_vacio'}
 
         # ====================================================================
         # IDEMPOTENCIA POR wamid: Meta a veces reentrega el MISMO mensaje
@@ -345,6 +359,20 @@ class WhatsappAgent(models.AbstractModel):
                 return self._show_my_appointments(session, mode='reagendar')
             if kw == 'cancelar':
                 return self._show_my_appointments(session, mode='cancelar')
+
+        # ==================================================================
+        # CLASIFICADOR DE INTENCIÓN (Fase 1) — último paso antes del LLM.
+        # El texto libre no matcheó ninguna keyword inequívoca. En vez de
+        # dejar que el LLM REDACTE una respuesta (que puede inventar
+        # servicios u horarios), le pedimos que solo ELIJA UNA RUTA de una
+        # lista cerrada, y la traducimos al botón equivalente. La respuesta
+        # la sigue generando el handler determinista: después de este punto
+        # el sistema no distingue si el paciente tocó el botón o lo escribió.
+        # ==================================================================
+        if self._intent_routing_enabled():
+            routed = self._route_by_intent(session, text)
+            if routed is not None:
+                return routed
 
         # Si la sesión quedó marcada como 'con_humano' por algún motivo
         # histórico (lógica antigua) o como 'expirada' por cualquier flujo,
@@ -1209,22 +1237,120 @@ class WhatsappAgent(models.AbstractModel):
         if any(k in t for k in ('cancelar', 'anular', 'quitar cita',
                                  'borrar cita')):
             return 'cancelar'
-        # 'cita'/'turno' sueltos con un verbo de intención: cubre las formas
-        # naturales ("necesito un turno", "quiero sacar una cita porfa") que
-        # antes fallaban por una palabra intermedia y se perdían en el LLM.
         if any(k in t for k in ('agendar', 'reservar', 'nueva cita',
                                  'pedir cita', 'sacar cita', 'sacar turno',
                                  'nuevo turno')):
             return 'agendar'
-        if (any(v in t for v in ('quiero', 'necesito', 'quisiera', 'me das',
-                                 'dame', 'puedo', 'agenda', 'saco', 'sacar',
-                                 'pedir', 'reservo'))
-                and any(s in t for s in ('cita', 'turno', 'hora'))):
-            return 'agendar'
+        # INFO va ANTES de la regla genérica de abajo. Si se invierte, todo lo
+        # que diga "quiero ... mis citas" cae en 'agendar' y el paciente que
+        # pide ver sus citas recibe el formulario de agendar una nueva
+        # (regresión real en producción, 2026-07-20).
         if any(k in t for k in ('info', 'mis citas', 'mi cita',
-                                 'mis turnos', 'mi turno', 'consultar')):
+                                 'mis turnos', 'mi turno', 'consultar',
+                                 'ver mis', 'estado de mi')):
             return 'info'
+        # NO se agrega una regla difusa "verbo + sustantivo" acá. Se probó y
+        # causó una regresión en producción: secuestraba 'info' porque
+        # "quiero ver mis citas" tiene verbo y sustantivo. Las keywords se
+        # mantienen de ALTA PRECISIÓN (frases inequívocas) y lo ambiguo lo
+        # resuelve `innatum.wa.intent.classifier`, que para eso está.
         return None
+
+    def _intent_routing_enabled(self):
+        """Kill switch. `False` → comportamiento anterior (cae al LLM)."""
+        return str2bool(
+            self.env['ir.config_parameter'].sudo().get_param(
+                'innatum_wa.intent_routing_enabled', 'True'), True)
+
+    def _route_by_intent(self, session, text):
+        """Clasifica el texto libre y lo enruta al handler determinista.
+
+        Devuelve la respuesta ya armada, o None si no se pudo decidir (el
+        llamador sigue con su flujo normal).
+
+        INVARIANTE: el LLM aquí solo elige la ruta. Todo lo que lee el
+        paciente lo produce el funnel determinista.
+        """
+        result = self.env['innatum.wa.intent.classifier'].classify(
+            text, session=session)
+        if not result:
+            # Sin decisión (o fallo del proveedor): mostrar el menú es mejor
+            # que responder algo inventado o quedarse callado.
+            if session.partner_id:
+                _logger.info(
+                    'Intent: sin decisión para %r → menú principal '
+                    '(session=%s)', (text or '')[:60], session.id)
+                return self._show_main_menu(session, session.partner_id)
+            return None
+
+        intencion = result['intention']
+        boton = INTENT_TO_BUTTON.get(intencion)
+        _logger.info(
+            'Intent: session=%s %r → %s → %s',
+            session.id, (text or '')[:60], intencion, boton or '(sin botón)')
+
+        if boton:
+            routed = self._handle_known_button_id(boton, session)
+            if routed is not None:
+                routed['intent'] = intencion
+                return routed
+
+        # Intenciones informativas y sociales: respuesta determinista corta
+        # + menú, para que el paciente siempre tenga próximo paso.
+        return self._respond_intent_sin_boton(session, intencion)
+
+    def _respond_intent_sin_boton(self, session, intencion):
+        """Intenciones que no mapean a un botón del funnel.
+
+        Se responden con datos del negocio (nunca redactados por el LLM) y
+        siempre dejando el menú a mano.
+        """
+        if intencion == 'saludo' and session.partner_id:
+            return self._show_main_menu(session, session.partner_id)
+
+        perfil = self.env['innatum.business.profile'].sudo().search(
+            [('company_id', '=', session.company_id.id)], limit=1)
+        cuerpo = None
+        if intencion == 'info_ubicacion':
+            partes = []
+            direccion = (
+                session.company_id.partner_id.contact_address or '').strip()
+            if direccion:
+                partes.append('📍 Estamos en:\n%s' % direccion)
+            mapa = (perfil.google_maps_url or '').strip() if perfil else ''
+            if mapa:
+                partes.append('🗺️ %s' % mapa)
+            cuerpo = '\n\n'.join(partes) or None
+        elif intencion == 'info_horarios':
+            horario = (perfil.business_hours or '').strip() if perfil else ''
+            cuerpo = ('🕒 Nuestro horario de atención:\n%s' % horario) \
+                if horario else None
+        elif intencion == 'info_precios':
+            cuerpo = ('💲 Los precios dependen del servicio. Elige "Agendar '
+                      'cita" y te muestro cada servicio con su valor.')
+        elif intencion == 'hablar_con_humano':
+            cuerpo = ('👤 Con gusto. Un miembro del equipo te contactará. '
+                      'Mientras tanto puedes usar el menú.')
+        elif intencion == 'cortesia':
+            cuerpo = '¡Con gusto! 🙌 ¿Necesitas algo más?'
+
+        if not cuerpo:
+            # Sin dato configurado para esa intención: no inventamos nada.
+            if session.partner_id:
+                return self._show_main_menu(session, session.partner_id)
+            return None
+
+        if session.partner_id:
+            menu = self._show_main_menu(session, session.partner_id)
+            menu['response_text'] = cuerpo + '\n\n' + menu['response_text']
+            if menu.get('meta_payload'):
+                menu['meta_payload']['interactive']['body']['text'] = \
+                    menu['response_text']
+            menu['intent'] = intencion
+            return menu
+        res = self._text_response(session, cuerpo)
+        res['intent'] = intencion
+        return res
 
     def _match_fecha_libre(self, text):
         """Texto libre → 'YYYY-MM-DD' si nombra un día concreto, o None.

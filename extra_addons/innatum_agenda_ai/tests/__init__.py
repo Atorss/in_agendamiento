@@ -24,3 +24,6 @@ from . import test_edge_agendamiento
 from . import test_operatividad_agendamiento
 from . import test_escenarios_agendamiento
 from . import test_nombre_paciente
+from . import test_intencion_keywords
+from . import test_intent_routing
+from . import test_intent_golden

@@ -27,13 +27,19 @@ class TestStaffPropuestas(Fase2Case):
         return slots[0]['id']
 
     def _horas_del_primer_dia(self, wamid):
-        """Navega días→horas: st_addmore → lista de días → tap primer
-        día → respuesta con las horas de ese día."""
+        """Navega días→horas y devuelve las horas de un día COMPLETO.
+
+        Se toma el ÚLTIMO día ofrecido, no el primero: el primero suele ser
+        HOY, cuya jornada ya está avanzada, así que la cantidad de huecos
+        depende de la hora a la que se corra la suite. Los tests de
+        paginación necesitan un día entero para ser deterministas (antes
+        fallaban solo por correr entrada la tarde).
+        """
         res = self._staff('st_addmore', wamid + '_d')
         rows = res['meta_payload']['interactive']['action']['sections'][0]['rows']
         dias = [r['id'] for r in rows if r['id'].startswith('st_day:')]
         self.assertTrue(dias, 'La lista debe traer días st_day:*')
-        return self._staff(dias[0], wamid + '_h')
+        return self._staff(dias[-1], wamid + '_h')
 
     def test_addmore_muestra_dias(self):
         res = self._staff('st_addmore', 'W_TS_D1')
@@ -353,8 +359,10 @@ class TestStaffFechaEscrita(Fase2Case):
         # con la paginación de horas y quedaba "pegada").
         self.servicio.duracion = 30.0   # ~16 huecos/día: habilita st_hmore
         res = self._staff('st_addmore', 'W_FE_16')
+        # Último día = jornada completa: hoy ya está avanzado y no alcanza
+        # para que aparezca st_hmore (hacía el test dependiente de la hora).
         dia = [r['id'] for r in self._rows(res)
-               if r['id'].startswith('st_day:')][0]
+               if r['id'].startswith('st_day:')][-1]
         self._staff(dia, 'W_FE_17')       # nivel horas, página 0
         self._staff('st_hmore', 'W_FE_18')  # paginamos horas -> página 1
         self.assertEqual(self.session.staff_slot_page, 1)

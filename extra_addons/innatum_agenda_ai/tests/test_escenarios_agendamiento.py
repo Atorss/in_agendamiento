@@ -423,3 +423,40 @@ class TestEscenarioPacienteNuevo(EscenarioCase):
         self.assertTrue(s.partner_id, 'debe quedar identificado')
         self._assert_guia(res, ' (tras identificarse)')
         self._assert_sin_ingles(res)
+
+
+class TestEntranteVacioDejaRastro(EscenarioCase):
+    """Un Flow completado cuyo Gateway NO tradujo el nfm_reply llega a Odoo
+    como interactive con texto vacío. Se descarta (correcto), pero debe
+    quedar registrado: en producción el turno se creó y el paciente nunca
+    recibió confirmación, y no había NADA en los logs para diagnosticarlo."""
+
+    def test_entrante_vacio_marca_el_motivo(self):
+        s = self._sesion(self.paciente, 'menu_principal')
+        res = self.Agent.process_message(
+            s, '', message_type='interactive', wamid='W_VACIO')
+        self.assertTrue(res.get('skip_send'))
+        self.assertEqual(
+            res.get('skipped_reason'), 'entrante_vacio',
+            'el descarte debe ser identificable, no un silencio anónimo')
+
+    def test_nfm_reply_bien_traducido_si_confirma(self):
+        """Contraste: con el Gateway correcto, el mismo Flow SÍ confirma."""
+        import json as _json
+        turno = self.Turno.create({
+            'company_id': self.company.id,
+            'professional_id': self.colaboradora.id,
+            'servicio_id': self.servicio.id,
+            'servicio_ids': [(6, 0, self.servicio.ids)],
+            'partner_id': self.paciente.id,
+            'date_start': self._slots()[-1],
+            'state': 'reserved',
+        })
+        s = self._sesion(self.paciente, 'menu_principal')
+        tok = make_flow_token(s.id, get_flow_token_secret(self.env),
+                              time.time())
+        res = self.Agent.process_message(
+            s, _json.dumps({'flow_token': tok, 'turno_id': turno.id}),
+            message_type='nfm_reply', wamid='W_NFM_OK')
+        self.assertIn('agendada', res['response_text'])
+        self._assert_sin_ingles(res, ' (confirmación del Flow)')
